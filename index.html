@@ -60,6 +60,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
 @media print{@page{ size:58mm auto; margin:0; }html, body{ background:#fff !important; margin:0 !important; padding:0 !important; }body *{visibility:hidden !important}#printable-receipt,#printable-receipt *{visibility:visible !important}#printable-receipt{position:absolute;left:0;top:0;width:58mm; max-width:58mm;color:#000;background:#fff;padding:2mm 1mm;margin:0;font-family:'Courier New','Lucida Console',monospace;font-size:11px;line-height:1.3;word-wrap:break-word;overflow-wrap:break-word;}}
 .rp-line{white-space:pre-wrap;word-break:break-word;font-family:'Courier New',monospace}
 .bt-connected{ background-color:rgba(16,185,129,.15) !important;border-color:rgba(16,185,129,.4) !important; color:#34d399 !important; }
+.tpl-preview{background:#fff;color:#000;font-family:'Courier New',monospace;font-size:10px;line-height:1.3;padding:8px;border-radius:6px;white-space:pre;overflow-x:auto;max-height:220px;overflow-y:auto;}
 @media(max-width:767px){button:not(.no-min), a.btn { min-height:36px; }input, select { min-height:38px; }}
 </style>
 </head>
@@ -114,6 +115,8 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
       <i class="fa-solid fa-code-branch text-sm w-5 text-center"></i> Data Cabang</button>
     <button onclick="openPrinterSettings()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/60">
       <i class="fa-solid fa-print text-sm w-5 text-center"></i> Pengaturan Printer</button>
+    <button onclick="openTemplateSettings()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/60">
+      <i class="fa-solid fa-file-pen text-sm w-5 text-center"></i> Template Nota</button>
   </nav>
 
   <div class="p-4 border-t border-darkBorder space-y-2">
@@ -685,7 +688,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
   </div>
 </div>
 
-<!-- PENGATURAN PRINTER — SUDAH DIPERBARUI -->
+<!-- PENGATURAN PRINTER -->
 <div id="printer-modal" class="modal-container fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
   <div class="modal-content bg-darkCard border border-darkBorder rounded-2xl w-full max-w-md p-6 shadow-2xl">
     <div class="flex justify-between items-center mb-4">
@@ -718,6 +721,78 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <button onclick="disconnectPrinter()" id="btn-disconnect-printer" class="px-3 py-2.5 bg-slate-800 text-slate-600 text-xs font-bold rounded-xl cursor-not-allowed" disabled><i class="fa-solid fa-plug-circle-xmark mr-1"></i> Disconnect</button>
       </div>
       <button onclick="closeModal('printer-modal')" class="w-full py-2.5 bg-brandOrange hover:bg-brandOrangeHover text-white text-xs font-bold rounded-xl">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPLATE NOTA -->
+<div id="template-modal" class="modal-container fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div class="modal-content bg-darkCard border border-darkBorder rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-file-pen text-amber-400"></i> Edit Template Nota</h3>
+      <button onclick="closeModal('template-modal')" class="text-slate-400 hover:text-white w-8 h-8 rounded-lg hover:bg-slate-800"><i class="fa-solid fa-xmark text-lg"></i></button></div>
+
+    <div class="space-y-3">
+      <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-[10px] text-amber-300">
+        <i class="fa-solid fa-circle-info mr-1"></i> Template ini hanya mengubah <b>tampilan struk</b>. Data di database tidak berubah.
+      </div>
+
+      <div class="bg-slate-900 rounded-xl p-3 space-y-2">
+        <h4 class="text-xs font-bold text-white flex items-center gap-2"><i class="fa-solid fa-heading text-brandOrange text-[10px]"></i> Header Toko</h4>
+        <div><label class="block text-[10px] text-slate-400 mb-0.5">Nama Toko</label>
+          <input type="text" id="tpl-store" oninput="updateTemplatePreview()" placeholder="INVENTORY HUB"
+            class="w-full bg-slate-800 border border-darkBorder rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+        <div><label class="block text-[10px] text-slate-400 mb-0.5">Alamat Baris 1</label>
+          <input type="text" id="tpl-address" oninput="updateTemplatePreview()" placeholder="Kantor Pusat Utama"
+            class="w-full bg-slate-800 border border-darkBorder rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+        <div><label class="block text-[10px] text-slate-400 mb-0.5">Alamat Baris 2</label>
+          <input type="text" id="tpl-address2" oninput="updateTemplatePreview()" placeholder="Jl. Raya Industri No. 1"
+            class="w-full bg-slate-800 border border-darkBorder rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+        <div><label class="block text-[10px] text-slate-400 mb-0.5">Telepon</label>
+          <input type="text" id="tpl-phone" oninput="updateTemplatePreview()" placeholder="Telp: 021-1234567"
+            class="w-full bg-slate-800 border border-darkBorder rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+      </div>
+
+      <div class="bg-slate-900 rounded-xl p-3 space-y-2">
+        <h4 class="text-xs font-bold text-white flex items-center gap-2"><i class="fa-solid fa-shoe-prints text-brandOrange text-[10px]"></i> Footer Struk</h4>
+        <div><label class="block text-[10px] text-slate-400 mb-0.5">Ucapan Baris 1</label>
+          <input type="text" id="tpl-footer1" oninput="updateTemplatePreview()" placeholder="Terima kasih"
+            class="w-full bg-slate-800 border border-darkBorder rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+        <div><label class="block text-[10px] text-slate-400 mb-0.5">Ucapan Baris 2</label>
+          <input type="text" id="tpl-footer2" oninput="updateTemplatePreview()" placeholder="Barang sudah diterima"
+            class="w-full bg-slate-800 border border-darkBorder rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+        <div><label class="block text-[10px] text-slate-400 mb-0.5">Ucapan Baris 3</label>
+          <input type="text" id="tpl-footer3" oninput="updateTemplatePreview()" placeholder="dengan kondisi baik"
+            class="w-full bg-slate-800 border border-darkBorder rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+      </div>
+
+      <div class="bg-slate-900 rounded-xl p-3 space-y-2">
+        <h4 class="text-xs font-bold text-white flex items-center gap-2"><i class="fa-solid fa-pen-signature text-brandOrange text-[10px]"></i> Tanda Tangan</h4>
+        <div><label class="block text-[10px] text-slate-400 mb-0.5">Baris Penerima (Transaksi Keluar)</label>
+          <input type="text" id="tpl-receiver" oninput="updateTemplatePreview()" placeholder="Penerima: ____________"
+            class="w-full bg-slate-800 border border-darkBorder rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+        <div><label class="block text-[10px] text-slate-400 mb-0.5">Baris Tanda Tangan (Transaksi Motor)</label>
+          <input type="text" id="tpl-signature" oninput="updateTemplatePreview()" placeholder="Tanda Tangan: _______"
+            class="w-full bg-slate-800 border border-darkBorder rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+      </div>
+
+      <div class="bg-slate-900 rounded-xl p-3">
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-xs font-bold text-white flex items-center gap-2"><i class="fa-solid fa-eye text-brandOrange text-[10px]"></i> Preview</h4>
+          <span id="tpl-preview-size" class="text-[9px] text-slate-500"></span>
+        </div>
+        <div id="tpl-preview" class="tpl-preview"></div>
+      </div>
+
+      <div class="flex flex-col gap-2 pt-2">
+        <button onclick="saveTemplateSettings()" class="w-full py-2.5 bg-brandOrange hover:bg-brandOrangeHover text-white text-xs font-bold rounded-xl">
+          <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Template</button>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="resetTemplateSettings()" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">
+            <i class="fa-solid fa-rotate-left mr-1"></i> Reset Default</button>
+          <button onclick="closeModal('template-modal')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">Tutup</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -777,6 +852,115 @@ let dashVisible = true;
 let paperSize = localStorage.getItem('paperSize') || '58';
 
 /* ============================================================
+   TEMPLATE NOTA
+   ============================================================ */
+const DEFAULT_TEMPLATE = {
+  store: 'INVENTORY HUB',
+  address: 'Kantor Pusat Utama',
+  address2: 'Jl. Raya Industri No. 1',
+  phone: 'Telp: 021-1234567',
+  footer1: 'Terima kasih',
+  footer2: 'Barang sudah diterima',
+  footer3: 'dengan kondisi baik',
+  receiver: 'Penerima: ____________',
+  signature: 'Tanda Tangan: _______'
+};
+
+let receiptTemplate = loadTemplateFromStorage();
+
+function loadTemplateFromStorage(){
+  try {
+    const saved = localStorage.getItem('receiptTemplate');
+    if(saved) return Object.assign({}, DEFAULT_TEMPLATE, JSON.parse(saved));
+  } catch(e){}
+  return Object.assign({}, DEFAULT_TEMPLATE);
+}
+function saveTemplateToStorage(t){
+  receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, t);
+  localStorage.setItem('receiptTemplate', JSON.stringify(receiptTemplate));
+}
+function clearTemplateStorage(){
+  receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE);
+  localStorage.removeItem('receiptTemplate');
+}
+
+function openTemplateSettings(){
+  const T = receiptTemplate;
+  $('tpl-store').value = T.store || '';
+  $('tpl-address').value = T.address || '';
+  $('tpl-address2').value = T.address2 || '';
+  $('tpl-phone').value = T.phone || '';
+  $('tpl-footer1').value = T.footer1 || '';
+  $('tpl-footer2').value = T.footer2 || '';
+  $('tpl-footer3').value = T.footer3 || '';
+  $('tpl-receiver').value = T.receiver || '';
+  $('tpl-signature').value = T.signature || '';
+  updateTemplatePreview();
+  openModal('template-modal');
+}
+
+function getTemplateFromForm(){
+  return {
+    store: $('tpl-store').value.trim(),
+    address: $('tpl-address').value.trim(),
+    address2: $('tpl-address2').value.trim(),
+    phone: $('tpl-phone').value.trim(),
+    footer1: $('tpl-footer1').value.trim(),
+    footer2: $('tpl-footer2').value.trim(),
+    footer3: $('tpl-footer3').value.trim(),
+    receiver: $('tpl-receiver').value.trim(),
+    signature: $('tpl-signature').value.trim()
+  };
+}
+
+function updateTemplatePreview(){
+  const T = getTemplateFromForm();
+  const W = getCharsPerLine();
+  const L = getLine();
+  const lines = [];
+
+  if(T.store) lines.push(center(T.store, W));
+  if(T.address) lines.push(center(T.address, W));
+  if(T.address2) lines.push(center(T.address2, W));
+  if(T.phone) lines.push(center(T.phone, W));
+  lines.push(L);
+  lines.push('No  : TRX-XXXXXX');
+  lines.push('Tgl : ' + fmtDateTime(new Date().toISOString()));
+  lines.push('Ke  : Cabang Contoh');
+  lines.push('Oleh: Admin');
+  lines.push(L);
+  lines.push(twoCol('  Contoh Barang × 2', rp(100000), W));
+  lines.push(L);
+  lines.push(twoCol('TOTAL ITEM', '2 Pcs', W));
+  lines.push(twoCol('TOTAL NILAI', rp(100000), W));
+  lines.push(L);
+  if(T.footer1) lines.push(center(T.footer1, W));
+  if(T.footer2) lines.push(center(T.footer2, W));
+  if(T.footer3) lines.push(center(T.footer3, W));
+  lines.push('');
+  if(T.receiver) lines.push(T.receiver);
+  lines.push('');
+
+  $('tpl-preview').textContent = lines.join('\n');
+  const sz = $('tpl-preview-size');
+  if(sz) sz.textContent = paperSize + 'mm • ' + W + ' karakter';
+}
+
+function saveTemplateSettings(){
+  const T = getTemplateFromForm();
+  saveTemplateToStorage(T);
+  closeModal('template-modal');
+  toast('Template nota tersimpan');
+}
+
+function resetTemplateSettings(){
+  if(!confirm('Reset template ke default?\n\nSemua kustomisasi akan hilang.')) return;
+  clearTemplateStorage();
+  openTemplateSettings();
+  toast('Template direset ke default');
+}
+
+/* ============================================================
    HELPERS
    ============================================================ */
 const $ = id => document.getElementById(id);
@@ -834,7 +1018,13 @@ function statusBadge(st){
   const map = {'Aktif Operasional':'bg-emerald-500/15 text-emerald-400 border-emerald-500/30','Tidak Aktif Operasional':'bg-amber-500/15 text-amber-400 border-amber-500/30','Menunggu Transaksi':'bg-sky-500/15 text-sky-400 border-sky-500/30','Terjual':'bg-slate-500/15 text-slate-400 border-slate-500/30'};
   return `<span class="px-2 py-0.5 rounded-full border text-[10px] font-semibold ${map[st]||'bg-slate-700 text-slate-300 border-slate-600'}">${esc(st||'-')}</span>`;
 }
-function setPaperSize(size){ paperSize = size; localStorage.setItem('paperSize', size); updatePaperUI(); toast('Ukuran kertas: ' + size + 'mm'); }
+function setPaperSize(size){
+  paperSize = size;
+  localStorage.setItem('paperSize', size);
+  updatePaperUI();
+  if(!$('template-modal').classList.contains('hidden')) updateTemplatePreview();
+  toast('Ukuran kertas: ' + size + 'mm');
+}
 function updatePaperUI(){
   const s58 = $('paper-58'), s80 = $('paper-80');
   if(!s58 || !s80) return;
@@ -873,9 +1063,6 @@ async function loadData(){
   }
 }
 
-/* ============================================================
-   RENDER ALL
-   ============================================================ */
 function renderAll(){
   renderDashboard(); renderSparepartTable(); renderBranchOptions(); renderPosCatalog();
   renderCart(); renderHistoryTable(); renderMotorTable(); renderMotorCatalog();
@@ -1770,7 +1957,6 @@ function checkBluetoothSupport(){
 }
 function openPrinterSettings(){ updatePaperUI(); updatePrinterStatusUI(); checkBluetoothSupport(); openModal('printer-modal'); }
 
-/* UPDATE — handle 3 tombol printer */
 function updatePrinterStatusUI(){
   const st = $('printer-status'), nm = $('printer-name'), btn = $('bt-btn');
   const btnTest = $('btn-test-print');
@@ -1783,36 +1969,18 @@ function updatePrinterStatusUI(){
     if(btn){ btn.classList.add('bt-connected'); }
     const txt = $('btn-bt-text'); if(txt) txt.textContent = 'Ready';
 
-    if(btnConn){
-      btnConn.disabled = true;
-      btnConn.className = 'px-3 py-2.5 bg-slate-800 text-slate-500 text-xs font-bold rounded-xl cursor-not-allowed';
-    }
-    if(btnTest){
-      btnTest.disabled = false;
-      btnTest.className = 'px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl';
-    }
-    if(btnDisc){
-      btnDisc.disabled = false;
-      btnDisc.className = 'px-3 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl';
-    }
+    if(btnConn){ btnConn.disabled = true; btnConn.className = 'px-3 py-2.5 bg-slate-800 text-slate-500 text-xs font-bold rounded-xl cursor-not-allowed'; }
+    if(btnTest){ btnTest.disabled = false; btnTest.className = 'px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl'; }
+    if(btnDisc){ btnDisc.disabled = false; btnDisc.className = 'px-3 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl'; }
   } else {
     if(st){ st.textContent = 'Tidak Terhubung'; st.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400'; }
     if(nm){ nm.classList.add('hidden'); }
     if(btn){ btn.classList.remove('bt-connected'); }
     const txt = $('btn-bt-text'); if(txt) txt.textContent = 'Printer';
 
-    if(btnConn){
-      btnConn.disabled = false;
-      btnConn.className = 'px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl';
-    }
-    if(btnTest){
-      btnTest.disabled = true;
-      btnTest.className = 'px-3 py-2.5 bg-slate-800 text-slate-600 text-xs font-bold rounded-xl cursor-not-allowed';
-    }
-    if(btnDisc){
-      btnDisc.disabled = true;
-      btnDisc.className = 'px-3 py-2.5 bg-slate-800 text-slate-600 text-xs font-bold rounded-xl cursor-not-allowed';
-    }
+    if(btnConn){ btnConn.disabled = false; btnConn.className = 'px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl'; }
+    if(btnTest){ btnTest.disabled = true; btnTest.className = 'px-3 py-2.5 bg-slate-800 text-slate-600 text-xs font-bold rounded-xl cursor-not-allowed'; }
+    if(btnDisc){ btnDisc.disabled = true; btnDisc.className = 'px-3 py-2.5 bg-slate-800 text-slate-600 text-xs font-bold rounded-xl cursor-not-allowed'; }
   }
 }
 
@@ -1853,42 +2021,24 @@ async function connectBluetoothPrinter(){
   }
 }
 
-/* ============================================================
-   DISCONNECT PRINTER
-   ============================================================ */
 async function disconnectPrinter(){
-  if(!btChar && !btDevice){
-    return toast('Tidak ada printer yang terhubung', 'error');
-  }
+  if(!btChar && !btDevice) return toast('Tidak ada printer yang terhubung', 'error');
   const nama = btDeviceName || 'Printer';
   if(!confirm('Putuskan koneksi printer "' + nama + '"?')) return;
-
   try {
-    if(btDevice && btDevice.gatt && btDevice.gatt.connected){
-      btDevice.gatt.disconnect();
-    }
-  } catch(e){
-    console.warn('Disconnect error:', e);
-  }
-
-  btChar = null;
-  btDeviceName = null;
-  btDevice = null;
+    if(btDevice && btDevice.gatt && btDevice.gatt.connected){ btDevice.gatt.disconnect(); }
+  } catch(e){ console.warn('Disconnect error:', e); }
+  btChar = null; btDeviceName = null; btDevice = null;
   updatePrinterStatusUI();
   toast('Printer "' + nama + '" terputus');
 }
 
-/* Auto disconnect saat halaman ditutup */
 window.addEventListener('beforeunload', () => {
-  try {
-    if(btDevice && btDevice.gatt && btDevice.gatt.connected){
-      btDevice.gatt.disconnect();
-    }
-  } catch(e){}
+  try { if(btDevice && btDevice.gatt && btDevice.gatt.connected){ btDevice.gatt.disconnect(); } } catch(e){}
 });
 
 /* ============================================================
-   CETAK THERMAL
+   CETAK THERMAL (SUDAH PAKAI TEMPLATE)
    ============================================================ */
 const LINE58 = '--------------------------------';
 const LINE80 = '------------------------------------------------';
@@ -1910,34 +2060,86 @@ function wrapText(text, width){
 function padRight(str, len){ str = String(str); return str.length >= len ? str.substring(0,len) : str + ' '.repeat(len - str.length); }
 function twoCol(left, right, width){ left = String(left||''); right = String(right||''); const space = width - right.length; if(left.length >= space) return padRight(left.substring(0, space-1), space-1) + ' ' + right; return padRight(left, space) + right; }
 function center(text, width){ text = String(text||''); if(text.length >= width) return text.substring(0, width); const pad = Math.floor((width - text.length) / 2); return ' '.repeat(pad) + text; }
+
 function buildReceiptKeluar(t){
   const W = getCharsPerLine(); const L = getLine(); const items = t.items || []; const lines = [];
-  lines.push(center('INVENTORY HUB', W)); lines.push(center('Kantor Pusat Utama', W));
-  lines.push(center('Jl. Raya Industri No. 1', W)); lines.push(center('Telp: 021-1234567', W));
-  lines.push(L); lines.push('No  : ' + t.id); lines.push('Tgl : ' + fmtDateTime(t.tanggal));
-  lines.push('Ke  : ' + (t.cabangNama || cabangName(t.cabangId))); lines.push('Oleh: ' + (t.user || 'Admin')); lines.push(L);
-  items.forEach(i=>{ wrapText(i.nama, W).forEach(l => lines.push(l)); lines.push(twoCol(`  ${i.qty} x ${rp(i.harga)}`, rp(i.harga * i.qty), W)); });
-  lines.push(L); lines.push(twoCol('TOTAL ITEM', t.totalItem + ' Pcs', W)); lines.push(twoCol('TOTAL NILAI', rp(t.totalNilai), W));
+  const T = receiptTemplate;
+
+  // Header (dari template)
+  if(T.store) lines.push(center(T.store, W));
+  if(T.address) lines.push(center(T.address, W));
+  if(T.address2) lines.push(center(T.address2, W));
+  if(T.phone) lines.push(center(T.phone, W));
+  lines.push(L);
+
+  // Data transaksi (tetap)
+  lines.push('No  : ' + t.id);
+  lines.push('Tgl : ' + fmtDateTime(t.tanggal));
+  lines.push('Ke  : ' + (t.cabangNama || cabangName(t.cabangId)));
+  lines.push('Oleh: ' + (t.user || 'Admin'));
+  lines.push(L);
+
+  // Items (tetap)
+  items.forEach(i=>{
+    wrapText(i.nama, W).forEach(l => lines.push(l));
+    lines.push(twoCol(`  ${i.qty} x ${rp(i.harga)}`, rp(i.harga * i.qty), W));
+  });
+  lines.push(L);
+  lines.push(twoCol('TOTAL ITEM', t.totalItem + ' Pcs', W));
+  lines.push(twoCol('TOTAL NILAI', rp(t.totalNilai), W));
   if(t.catatan){ lines.push(L); wrapText('Catatan: ' + t.catatan, W).forEach(l => lines.push(l)); }
-  lines.push(L); lines.push(center('Terima kasih', W)); lines.push(center('Barang sudah diterima', W)); lines.push(center('dengan kondisi baik', W));
-  lines.push(''); lines.push('Penerima: ____________'); lines.push(''); return lines.join('\n');
+  lines.push(L);
+
+  // Footer (dari template)
+  if(T.footer1) lines.push(center(T.footer1, W));
+  if(T.footer2) lines.push(center(T.footer2, W));
+  if(T.footer3) lines.push(center(T.footer3, W));
+  lines.push('');
+  if(T.receiver) lines.push(T.receiver);
+  lines.push('');
+  return lines.join('\n');
 }
+
 function buildReceiptMotor(t){
   const W = getCharsPerLine(); const L = getLine(); const lines = [];
-  lines.push(center('INVENTORY HUB', W)); lines.push(center('Kantor Pusat Utama', W)); lines.push(L);
-  lines.push('No  : ' + t.id); lines.push('Tgl : ' + fmtDateTime(t.tanggal));
-  lines.push('Plat: ' + t.plat); lines.push('Unit: ' + t.model);
-  if(t.noMesin) lines.push('Mesin : ' + t.noMesin); if(t.noRangka) lines.push('Rangka: ' + t.noRangka); if(t.atasNama) lines.push('STNK  : ' + t.atasNama);
-  lines.push(L); lines.push('Pembeli : ' + (t.pembeli||'-')); lines.push('Metode  : ' + (t.metode||'-')); lines.push(twoCol('HARGA', rp(t.hargaJual), W));
+  const T = receiptTemplate;
+
+  // Header (dari template)
+  if(T.store) lines.push(center(T.store, W));
+  if(T.address) lines.push(center(T.address, W));
+  lines.push(L);
+
+  // Data motor (tetap)
+  lines.push('No  : ' + t.id);
+  lines.push('Tgl : ' + fmtDateTime(t.tanggal));
+  lines.push('Plat: ' + t.plat);
+  lines.push('Unit: ' + t.model);
+  if(t.noMesin) lines.push('Mesin : ' + t.noMesin);
+  if(t.noRangka) lines.push('Rangka: ' + t.noRangka);
+  if(t.atasNama) lines.push('STNK  : ' + t.atasNama);
+  lines.push(L);
+  lines.push('Pembeli : ' + (t.pembeli||'-'));
+  lines.push('Metode  : ' + (t.metode||'-'));
+  lines.push(twoCol('HARGA', rp(t.hargaJual), W));
   if(t.catatan){ lines.push(L); wrapText('Catatan: ' + t.catatan, W).forEach(l => lines.push(l)); }
-  lines.push(L); lines.push(center('Bukti Penjualan Resmi', W)); lines.push(center('Terima kasih', W));
-  lines.push(''); lines.push('Tanda Tangan: _______'); lines.push(''); return lines.join('\n');
+  lines.push(L);
+
+  // Footer (dari template)
+  if(T.footer1) lines.push(center(T.footer1, W));
+  lines.push(center('Bukti Penjualan Resmi', W));
+  lines.push(center('Terima kasih', W));
+  lines.push('');
+  if(T.signature) lines.push(T.signature);
+  lines.push('');
+  return lines.join('\n');
 }
+
 function receiptToHtml(text){ return '<div class="rp-line">' + esc(text).replace(/\n/g,'<br>').replace(/ /g,'&nbsp;') + '</div>'; }
 function printReceiptKeluar(t){ printThermal(buildReceiptKeluar(t), 'keluar'); }
 function printReceiptKeluarById(id){ const t = DB.trxKeluar.find(x => String(x.id) === String(id)); if(t) printReceiptKeluar(t); }
 function printReceiptMotor(t){ printThermal(buildReceiptMotor(t), 'motor'); }
 function printReceiptMotorById(id){ const t = DB.trxMotor.find(x => String(x.id) === String(id)); if(t) printReceiptMotor(t); }
+
 function printThermal(text, type){
   const el = $('printable-receipt'); el.setAttribute('data-paper', paperSize); el.innerHTML = receiptToHtml(text);
   if(btChar){
@@ -1949,12 +2151,14 @@ function printThermal(text, type){
     window.print();
   }
 }
+
 function testPrint(){
   if(!btChar) return toast('Hubungkan printer terlebih dahulu', 'error');
   const W = getCharsPerLine(); const L = getLine();
   const text = [center('TEST PRINT', W), L, 'Printer : ' + btDeviceName, 'Kertas  : ' + paperSize + 'mm', 'Karakter: ' + W + ' per baris', 'Waktu   : ' + fmtDateTime(new Date().toISOString()), L, center('OK - Koneksi Berhasil', W), L, ''].join('\n');
   sendEscPos(text).then(()=>toast('Test print terkirim')).catch(err=>toast('Gagal: ' + err.message, 'error'));
 }
+
 async function sendEscPos(text){
   if(!btChar) throw new Error('Printer tidak terhubung');
   const enc = new TextEncoder(); const chunks = [];
@@ -1963,6 +2167,7 @@ async function sendEscPos(text){
   chunks.push(new Uint8Array([0x1B, 0x64, 0x04])); chunks.push(new Uint8Array([0x1D, 0x56, 0x42, 0x00]));
   for(const chunk of chunks){ let offset = 0; while(offset < chunk.length){ const part = chunk.slice(offset, offset + 180); await btChar.writeValue(part); offset += 180; await new Promise(r => setTimeout(r, 20)); } }
 }
+
 function downloadCSV(rows, filename){
   const csv = rows.map(r => r.map(c => { const s = String(c==null?'':c); return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g,'""') + '"' : s; }).join(',')).join('\r\n');
   const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
