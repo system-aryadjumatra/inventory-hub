@@ -143,6 +143,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <i class="fa-solid fa-print"></i> <span id="btn-bt-text" class="hidden sm:inline">Printer</span></button>
       <div class="text-right hidden sm:block">
         <p id="clock-time" class="text-xs font-mono font-bold text-slate-200">00:00:00</p>
+        <p id="clock-date" class="text-[10px] text-slate-400 mt-0.5">-</p>
       </div>
     </div>
   </header>
@@ -266,16 +267,30 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <div class="bg-darkCard p-3 sm:p-4 rounded-2xl border border-darkBorder"><p class="text-[10px] text-slate-400 uppercase">Cabang</p><p id="rekap-trx-cabang" class="text-base sm:text-xl font-bold text-white mt-1">0</p></div>
       </div>
 
-      <div class="bg-darkCard p-3 sm:p-4 rounded-2xl border border-darkBorder flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-        <h3 class="font-bold text-sm text-white">Riwayat Pengeluaran Sparepart</h3>
-        <div class="flex gap-2">
-          <div class="relative flex-1 sm:w-56">
-            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
-            <input type="text" id="history-search" data-debounce="renderHistoryTable" placeholder="Cari ID / Cabang / Barang..."
-              class="w-full bg-slate-900 border border-darkBorder rounded-xl pl-9 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange">
+      <div class="bg-darkCard p-3 sm:p-4 rounded-2xl border border-darkBorder space-y-3">
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+          <h3 class="font-bold text-sm text-white">Riwayat Pengeluaran Sparepart</h3>
+          <div class="flex gap-2">
+            <div class="relative flex-1 sm:w-56">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+              <input type="text" id="history-search" data-debounce="renderHistoryTable" placeholder="Cari ID / Cabang / Barang..."
+                class="w-full bg-slate-900 border border-darkBorder rounded-xl pl-9 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange">
+            </div>
+            <button onclick="exportRekapSparepart()" class="px-3 py-1.5 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 text-xs font-semibold transition whitespace-nowrap">
+              <i class="fa-solid fa-file-csv mr-1"></i> <span class="hidden sm:inline">Export</span></button>
           </div>
-          <button onclick="exportRekapSparepart()" class="px-3 py-1.5 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 text-xs font-semibold transition whitespace-nowrap">
-            <i class="fa-solid fa-file-csv mr-1"></i> <span class="hidden sm:inline">Export</span></button>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center pt-2 border-t border-darkBorder/50">
+          <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap"><i class="fa-solid fa-calendar-days mr-1"></i> Filter Tanggal:</span>
+          <div class="flex flex-1 gap-2 items-center">
+            <input type="date" id="history-date-from" onchange="renderHistoryTable()"
+              class="flex-1 bg-slate-900 border border-darkBorder rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange">
+            <span class="text-slate-500 text-xs">s/d</span>
+            <input type="date" id="history-date-to" onchange="renderHistoryTable()"
+              class="flex-1 bg-slate-900 border border-darkBorder rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange">
+            <button onclick="resetHistoryFilter()" title="Reset Filter" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition whitespace-nowrap">
+              <i class="fa-solid fa-xmark"></i></button>
+          </div>
         </div>
       </div>
 
@@ -372,6 +387,16 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
             <h3 class="font-bold text-sm text-white">Riwayat Transaksi Motor</h3>
             <button onclick="exportRekapMotorTrx()" class="px-3 py-1.5 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 text-xs font-semibold transition">
               <i class="fa-solid fa-file-csv mr-1"></i> Export</button>
+          </div>
+          <div class="px-4 py-3 border-b border-darkBorder flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+            <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap"><i class="fa-solid fa-calendar-days mr-1"></i> Filter Tanggal:</span>
+            <input type="date" id="motortrx-date-from" onchange="renderMotorTrxTable()"
+              class="flex-1 bg-slate-900 border border-darkBorder rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange">
+            <span class="text-slate-500 text-xs">s/d</span>
+            <input type="date" id="motortrx-date-to" onchange="renderMotorTrxTable()"
+              class="flex-1 bg-slate-900 border border-darkBorder rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange">
+            <button onclick="resetMotorTrxFilter()" title="Reset Filter" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition whitespace-nowrap">
+              <i class="fa-solid fa-xmark"></i></button>
           </div>
           <div class="table-wrap"><table class="w-full text-xs text-left text-slate-300">
             <thead class="text-[11px] text-slate-400 uppercase bg-slate-900/80 border-b border-darkBorder"><tr>
@@ -1422,11 +1447,24 @@ async function processPosCheckout(btn){
    ============================================================ */
 function renderHistoryTable(){
   const q = ($('history-search').value || '').toLowerCase();
+  const from = $('history-date-from') ? $('history-date-from').value : '';
+  const to   = $('history-date-to')   ? $('history-date-to').value   : '';
+
   const rows = DB.trxKeluar.filter(t=>{
+    // Filter tanggal
+    if(from || to){
+      const d = new Date(t.tanggal);
+      if(isNaN(d)) return false;
+      const dStr = d.toISOString().substring(0,10);
+      if(from && dStr < from) return false;
+      if(to   && dStr > to)   return false;
+    }
+    // Filter search
     if(!q) return true;
     const names = (t.items||[]).map(i=>i.nama).join(' ');
     return String(t.id).toLowerCase().includes(q) || String(t.cabangNama||'').toLowerCase().includes(q) || names.toLowerCase().includes(q);
   }).slice().reverse();
+
   $('history-table-body').innerHTML = rows.length ? rows.map(t=>{
     const names = (t.items||[]).map(i=>i.nama).join(', ');
     return `<tr class="hover:bg-slate-800/30 transition">
@@ -1442,16 +1480,26 @@ function renderHistoryTable(){
         <button onclick="openEditTrx('${t.id}')" title="Edit" class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition ml-1"><i class="fa-solid fa-pen text-[11px]"></i></button>
         <button onclick="deleteTrxKeluar('${t.id}', this)" title="Hapus" class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition ml-1"><i class="fa-solid fa-trash text-[11px]"></i></button>
       </td></tr>`;
-  }).join('') : `<tr><td colspan="7" class="py-8 text-center text-slate-500 text-xs">Belum ada transaksi</td></tr>`;
-  const total = DB.trxKeluar.length;
-  const item  = DB.trxKeluar.reduce((a,b)=>a + Number(b.totalItem||0), 0);
-  const nilai = DB.trxKeluar.reduce((a,b)=>a + Number(b.totalNilai||0), 0);
-  const cabSet = new Set(DB.trxKeluar.map(t=>t.cabangId));
+  }).join('') : `<tr><td colspan="7" class="py-8 text-center text-slate-500 text-xs">Belum ada transaksi${(from||to)?' pada rentang tanggal ini':''}</td></tr>`;
+
+  // Rekap dari data terfilter
+  const total = rows.length;
+  const item  = rows.reduce((a,b)=>a + Number(b.totalItem||0), 0);
+  const nilai = rows.reduce((a,b)=>a + Number(b.totalNilai||0), 0);
+  const cabSet = new Set(rows.map(t=>t.cabangId));
   $('rekap-trx-count').textContent = total;
   $('rekap-trx-item').textContent = item;
   $('rekap-trx-nilai').textContent = rp(nilai);
   $('rekap-trx-cabang').textContent = cabSet.size;
 }
+
+function resetHistoryFilter(){
+  if($('history-search')) $('history-search').value = '';
+  if($('history-date-from')) $('history-date-from').value = '';
+  if($('history-date-to')) $('history-date-to').value = '';
+  renderHistoryTable();
+}
+
 function showDetail(id){
   const t = DB.trxKeluar.find(x => String(x.id) === String(id));
   if(!t) return;
@@ -1725,7 +1773,20 @@ async function processMotorCheckout(btn){
   } catch(err){ clearLoading(btn); toast(err.message,'error'); }
 }
 function renderMotorTrxTable(){
-  const rows = (DB.trxMotor||[]).slice().reverse();
+  const from = $('motortrx-date-from') ? $('motortrx-date-from').value : '';
+  const to   = $('motortrx-date-to')   ? $('motortrx-date-to').value   : '';
+
+  const rows = (DB.trxMotor||[]).filter(t=>{
+    if(from || to){
+      const d = new Date(t.tanggal);
+      if(isNaN(d)) return false;
+      const dStr = d.toISOString().substring(0,10);
+      if(from && dStr < from) return false;
+      if(to   && dStr > to)   return false;
+    }
+    return true;
+  }).slice().reverse();
+
   $('motor-trx-table-body').innerHTML = rows.length ? rows.map(t=>`
     <tr class="hover:bg-slate-800/30 transition">
       <td class="py-3 px-4 font-mono text-[11px] text-brandOrange">${esc(t.id)}</td>
@@ -1739,16 +1800,25 @@ function renderMotorTrxTable(){
         <button onclick="printReceiptMotorById('${t.id}')" class="w-8 h-8 rounded-lg bg-brandOrange/10 text-brandOrange hover:bg-brandOrange/20 transition" title="Cetak"><i class="fa-solid fa-print text-[11px]"></i></button>
         <button onclick="openEditMotorTrx('${t.id}')" class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition ml-1" title="Edit"><i class="fa-solid fa-pen text-[11px]"></i></button>
         <button onclick="deleteMotorTrx('${t.id}', this)" class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition ml-1" title="Hapus"><i class="fa-solid fa-trash text-[11px]"></i></button>
-      </td></tr>`).join('') : `<tr><td colspan="8" class="py-8 text-center text-slate-500 text-xs">Belum ada transaksi motor</td></tr>`;
-  const total = DB.trxMotor.length;
-  const cash  = DB.trxMotor.filter(t=>t.metode==='Cash').length;
-  const tf    = DB.trxMotor.filter(t=>t.metode==='Transfer').length;
-  const nilai = DB.trxMotor.reduce((a,b)=>a + Number(b.hargaJual||0), 0);
+      </td></tr>`).join('') : `<tr><td colspan="8" class="py-8 text-center text-slate-500 text-xs">Belum ada transaksi motor${(from||to)?' pada rentang tanggal ini':''}</td></tr>`;
+
+  // Rekap dari data terfilter
+  const total = rows.length;
+  const cash  = rows.filter(t=>t.metode==='Cash').length;
+  const tf    = rows.filter(t=>t.metode==='Transfer').length;
+  const nilai = rows.reduce((a,b)=>a + Number(b.hargaJual||0), 0);
   $('rekap-mtrx-count').textContent = total;
   $('rekap-mtrx-cash').textContent = cash;
   $('rekap-mtrx-tf').textContent = tf;
   $('rekap-mtrx-nilai').textContent = rp(nilai);
 }
+
+function resetMotorTrxFilter(){
+  if($('motortrx-date-from')) $('motortrx-date-from').value = '';
+  if($('motortrx-date-to'))   $('motortrx-date-to').value = '';
+  renderMotorTrxTable();
+}
+
 function openEditMotorTrx(id){
   const t = DB.trxMotor.find(x => String(x.id) === String(id));
   if(!t) return;
@@ -2243,7 +2313,18 @@ function downloadCSV(rows, filename){
 /* ============================================================
    INIT
    ============================================================ */
-function tickClock(){ $('clock-time').textContent = new Date().toLocaleTimeString('id-ID'); }
+function tickClock(){
+  const now = new Date();
+  const timeEl = $('clock-time');
+  const dateEl = $('clock-date');
+  if(timeEl) timeEl.textContent = now.toLocaleTimeString('id-ID');
+  if(dateEl){
+    const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    const dayName = days[now.getDay()];
+    const dateStr = now.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+    dateEl.textContent = dayName + ', ' + dateStr;
+  }
+}
 setInterval(tickClock, 1000); tickClock();
 
 document.addEventListener('DOMContentLoaded', () => {
