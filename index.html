@@ -1976,18 +1976,41 @@ async function deleteMotorTrx(id, btn){
 }
 async function kembalikanKeKeranjang(id, btn){
   const t = DB.trxMotor.find(x => String(x.id) === String(id));
-  if(!t) return;
-  if(!confirm(`Kembalikan motor ${t.plat} ke keranjang penjualan?\n\n• Transaksi akan dihapus dari riwayat\n• Motor kembali ke status "Menunggu Transaksi"\n• Motor langsung muncul di katalog penjualan`)) return;
+  if(!t) return toast('Transaksi tidak ditemukan', 'error');
+  if(!confirm(
+    'Kembalikan motor ' + t.plat + ' ke keranjang penjualan?\n\n' +
+    '• Transaksi akan DIHAPUS dari riwayat\n' +
+    '• Motor kembali berstatus "Menunggu Transaksi"\n' +
+    '• Motor muncul di katalog Penjualan Motor'
+  )) return;
+
   setLoading(btn, '');
   showTopBar();
   try {
     const res = await apiPost('kembalikanKeKeranjang', { id });
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
-    DB.motor = res.motor; DB.trxMotor = res.trxMotor;
-    renderMotorTable(); renderMotorCatalog(); renderMotorTrxTable(); renderDashboard(); renderBranchOptions();
-    toast('Motor dikembalikan ke keranjang');
-  } catch(err){ clearLoading(btn); toast(err.message,'error'); }
+
+    // Update state
+    DB.motor    = res.motor || DB.motor;
+    DB.trxMotor = res.trxMotor || DB.trxMotor;
+
+    // Re-render semua tampilan terkait
+    renderMotorTable();
+    renderMotorCatalog();
+    renderMotorCart();
+    renderMotorTrxTable();
+    renderDashboard();
+    renderBranchOptions();
+
+    // Notifikasi
+    const plat = (res._info && res._info.plat) || t.plat;
+    toast('Motor ' + plat + ' dikembalikan ke keranjang. Buka tab Penjualan untuk lihat.');
+  } catch(err){
+    clearLoading(btn);
+    toast('Gagal: ' + err.message, 'error');
+    console.error('kembalikanKeKeranjang error:', err);
+  }
 }
 function exportRekapMotorTrx(){
   if(!DB.trxMotor.length) return toast('Tidak ada data', 'error');
