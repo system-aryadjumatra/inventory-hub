@@ -499,7 +499,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
   <button data-tab="transaksi-motor" onclick="switchTab('transaksi-motor')" id="bnav-transaksi-motor"><i class="fa-solid fa-wrench"></i><span>Transaksi</span></button>
 </nav>
 
-<!-- MODAL SPAREPART (dropdown kategori) -->
+<!-- MODALS -->
 <div id="sparepart-modal" class="modal-container fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
   <div class="modal-content bg-darkCard border border-darkBorder rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-center mb-4">
@@ -534,7 +534,6 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
   </div>
 </div>
 
-<!-- MODAL KELOLA KATEGORI -->
 <div id="kategori-modal" class="modal-container fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
   <div class="modal-content bg-darkCard border border-darkBorder rounded-2xl w-full max-w-sm p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-center mb-4">
@@ -936,6 +935,11 @@ let currentMotorSub = 'jual';
 let dashVisible = true;
 let paperSize = localStorage.getItem('paperSize') || '58';
 
+// ✅ CHANGE #1: Variable untuk auto-refresh
+let lastRefreshTime = 0;
+let isRefreshing = false;
+const REFRESH_COOLDOWN_MS = 5000; // 5 detik
+
 const DEFAULT_TEMPLATE = {
   store: 'AJ INVENTORY HUB', address: 'Kantor Pusat Utama',
   address2: 'Jl. Raya Industri No. 1', phone: 'Telp: 021-1234567',
@@ -1017,10 +1021,42 @@ function updatePaperUI(){
 }
 function getCharsPerLine(){ return paperSize === '80' ? 48 : 32; }
 
+// ✅ CHANGE #2: Silent refresh — auto reload data saat ganti tab
+async function silentRefresh(){
+  if (isRefreshing) return;
+  if (Date.now() - lastRefreshTime < REFRESH_COOLDOWN_MS) return;
+  isRefreshing = true;
+  try {
+    const res = await apiGet('getAll');
+    if (res.error) throw new Error(res.error);
+    DB = res;
+    receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template || {});
+    renderAll();
+    lastRefreshTime = Date.now();
+  } catch(e){
+    console.warn('Silent refresh error:', e);
+  } finally {
+    isRefreshing = false;
+  }
+}
+
+// ✅ CHANGE #3: applyResponse — handle partial + reset timestamp
 function applyResponse(res){
   if(!res) return;
+  lastRefreshTime = Date.now();
   if(res._full){ DB = res; renderAll(); return; }
   let needDash = false;
+
+  // Handle partial sparepart (checkout keluar)
+  if(res._sparepart_partial && Array.isArray(res._sparepart_partial)){
+    res._sparepart_partial.forEach(u => {
+      const s = DB.sparepart.find(x => String(x.id) === String(u.id));
+      if(s) s.stok = u.stok;
+    });
+    renderSparepartTable(); renderPosCatalog();
+    needDash = true;
+  }
+
   if(res.pusat){ DB.pusat = res.pusat; renderCabangCards(); renderHistoryTable(); renderMotorTrxTable(); renderMotorTable(); needDash = true; }
   if(res.template){ receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template); }
   if(res.kategori){ DB.kategori = res.kategori; renderKategoriList(); renderKategoriDropdown(); }
@@ -1033,6 +1069,7 @@ function applyResponse(res){
   if(needDash) renderDashboard();
 }
 
+// ✅ CHANGE #4: loadData — set lastRefreshTime
 async function loadData(){
   try {
     const res = await apiGet('getAll');
@@ -1040,6 +1077,7 @@ async function loadData(){
     DB = res;
     receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template || {});
     renderAll(); hideLoader(); checkBluetoothSupport();
+    lastRefreshTime = Date.now();
   } catch(err){
     toast('Gagal memuat: ' + err.message, 'error');
     hideLoader();
@@ -1054,7 +1092,7 @@ function renderAll(){
 }
 
 /* ============================================================
-   KATEGORI SPAREPART
+   KATEGORI
    ============================================================ */
 function renderKategoriDropdown(){
   const sel = $('sp-category');
@@ -1101,7 +1139,7 @@ async function saveKategoriFromModal(e){
 async function deleteKategori(id, btn){
   const k = (DB.kategori||[]).find(x => String(x.id) === String(id));
   if(!k) return;
-  if(!confirm('Hapus kategori "' + k.nama + '"?\n\nSparepart yang menggunakan kategori ini tidak akan terhapus, hanya kategori di dropdown yang hilang.')) return;
+  if(!confirm('Hapus kategori "' + k.nama + '"?\n\nSparepart yang menggunakan kategori ini tidak akan terhapus.')) return;
   setLoading(btn, '');
   try {
     const res = await apiPost('deleteKategori', { id });
@@ -1234,6 +1272,9 @@ function switchTab(tab){
   if(dashVisible) setTimeout(renderCharts, 60);
   closeMobileSidebar();
   window.scrollTo({top:0, behavior:'smooth'});
+
+  // ✅ CHANGE #5: Auto-refresh data saat ganti tab
+  silentRefresh();
 }
 function switchMotorSub(sub){
   currentMotorSub = sub;
@@ -1483,9 +1524,9 @@ async function processPosCheckout(btn){
     const res = await apiPost('checkoutKeluar', payload);
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
-    DB.sparepart = res.sparepart; DB.trxKeluar = res.trxKeluar;
+    lastRefreshTime = Date.now();
     cart = []; $('pos-notes').value = '';
-    renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart(); renderDashboard();
+    applyResponse(res);
     toast('Berhasil');
     printReceiptKeluar(res.trx);
   } catch(err){ clearLoading(btn); toast(err.message, 'error'); }
@@ -1853,6 +1894,7 @@ async function kembalikanMotor(id, btn){
     DB.motor = res.motor;
     motorCart = motorCart.filter(c => String(c.id) !== String(id));
     renderMotorCart(); renderMotorTable(); renderMotorCatalog(); renderDashboard(); renderBranchOptions();
+    lastRefreshTime = Date.now();
     toast('Motor dikembalikan');
   } catch(err){ clearLoading(btn); toast(err.message,'error'); }
 }
@@ -1896,6 +1938,7 @@ async function processMotorCheckout(btn){
     const res = await apiPost('checkoutMotor', payload);
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
+    lastRefreshTime = Date.now();
     DB.motor = res.motor; DB.trxMotor = res.trxMotor;
     motorCart = []; $('motor-buyer').value=''; $('motor-notes').value='';
     renderMotorTable(); renderMotorCatalog(); renderMotorCart(); renderMotorTrxTable(); renderDashboard(); renderBranchOptions();
@@ -1970,6 +2013,7 @@ async function deleteMotorTrx(id, btn){
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
     DB.motor = res.motor; DB.trxMotor = res.trxMotor;
+    lastRefreshTime = Date.now();
     renderMotorTable(); renderMotorCatalog(); renderMotorTrxTable(); renderDashboard(); renderBranchOptions();
     toast('Dihapus, motor dikembalikan ke Motor Kantor');
   } catch(err){ clearLoading(btn); toast(err.message,'error'); }
@@ -1991,11 +2035,10 @@ async function kembalikanKeKeranjang(id, btn){
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
 
-    // Update state
     DB.motor    = res.motor || DB.motor;
     DB.trxMotor = res.trxMotor || DB.trxMotor;
+    lastRefreshTime = Date.now();
 
-    // Re-render semua tampilan terkait
     renderMotorTable();
     renderMotorCatalog();
     renderMotorCart();
@@ -2003,7 +2046,6 @@ async function kembalikanKeKeranjang(id, btn){
     renderDashboard();
     renderBranchOptions();
 
-    // Notifikasi
     const plat = (res._info && res._info.plat) || t.plat;
     toast('Motor ' + plat + ' dikembalikan ke keranjang. Buka tab Penjualan untuk lihat.');
   } catch(err){
@@ -2450,7 +2492,6 @@ document.addEventListener('DOMContentLoaded', () => {
   switchTab('dashboard'); switchMotorSub('jual');
   updatePaperUI(); updatePrinterStatusUI(); checkBluetoothSupport();
 
-  // Set default filter ke 1 bulan
   setHistoryPreset('1m');
   setMotorTrxPreset('1m');
 
