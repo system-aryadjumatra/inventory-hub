@@ -65,6 +65,8 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
 .date-input::-webkit-calendar-picker-indicator{filter:invert(60%) sepia(80%) saturate(2000%) hue-rotate(360deg);cursor:pointer;}
 .preset-btn{transition:all .2s;}
 .preset-btn.active{background-color:rgba(249,115,22,.15);border-color:rgba(249,115,22,.4);color:#fb923c;}
+#refresh-indicator{transition:all .3s ease;}
+#refresh-indicator.flash-success{background-color:rgba(16,185,129,.15) !important;border-color:rgba(16,185,129,.4) !important;color:#34d399 !important;}
 @media(max-width:767px){button:not(.no-min), a.btn { min-height:36px; }input, select { min-height:38px; }}
 </style>
 </head>
@@ -142,6 +144,11 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <i class="fa-solid fa-chart-pie text-brandOrange"></i> <span class="truncate">Dashboard</span></h2>
     </div>
     <div class="flex items-center gap-2 flex-shrink-0">
+      <!-- REFRESH INDICATOR -->
+      <div id="refresh-indicator" class="hidden flex items-center gap-1.5 px-2 py-1 rounded-lg bg-brandOrange/10 border border-brandOrange/30">
+        <i class="fa-solid fa-rotate fa-spin text-brandOrange text-xs"></i>
+        <span class="text-[10px] text-brandOrange font-semibold hidden sm:inline">Refresh...</span>
+      </div>
       <button id="bt-btn" onclick="connectBluetoothPrinter()" title="Printer Bluetooth"
         class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600/30 text-xs font-semibold transition">
         <i class="fa-solid fa-print"></i> <span id="btn-bt-text" class="hidden sm:inline">Printer</span></button>
@@ -499,7 +506,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
   <button data-tab="transaksi-motor" onclick="switchTab('transaksi-motor')" id="bnav-transaksi-motor"><i class="fa-solid fa-wrench"></i><span>Transaksi</span></button>
 </nav>
 
-<!-- MODALS -->
+<!-- MODAL SPAREPART -->
 <div id="sparepart-modal" class="modal-container fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
   <div class="modal-content bg-darkCard border border-darkBorder rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-center mb-4">
@@ -534,6 +541,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
   </div>
 </div>
 
+<!-- MODAL KELOLA KATEGORI -->
 <div id="kategori-modal" class="modal-container fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
   <div class="modal-content bg-darkCard border border-darkBorder rounded-2xl w-full max-w-sm p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-center mb-4">
@@ -906,7 +914,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
 
 <script>
 /* ============================================================
-   ⚠️ GANTI URL DI BAWAH INI
+   API URL
    ============================================================ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbx28-VHy1d5kK4WsJ0xczsfMT9rv-Ow_eLKfTXSG8QXBnOdvFWO-SdGb0M0G34V4v5iKw/exec';
 
@@ -935,11 +943,6 @@ let currentMotorSub = 'jual';
 let dashVisible = true;
 let paperSize = localStorage.getItem('paperSize') || '58';
 
-// ✅ CHANGE #1: Variable untuk auto-refresh
-let lastRefreshTime = 0;
-let isRefreshing = false;
-const REFRESH_COOLDOWN_MS = 5000; // 5 detik
-
 const DEFAULT_TEMPLATE = {
   store: 'AJ INVENTORY HUB', address: 'Kantor Pusat Utama',
   address2: 'Jl. Raya Industri No. 1', phone: 'Telp: 021-1234567',
@@ -947,6 +950,65 @@ const DEFAULT_TEMPLATE = {
   receiver: 'Penerima: ____________', signature: 'Tanda Tangan: _______'
 };
 let receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE);
+
+/* ============================================================
+   AUTO-REFRESH STATE
+   ============================================================ */
+let lastRefreshTime = 0;
+let isRefreshing = false;
+const REFRESH_COOLDOWN_MS = 5000;
+
+/* ============================================================
+   SILENT REFRESH — dengan indikator visual
+   ============================================================ */
+async function silentRefresh(){
+  if (isRefreshing) return;
+  if (Date.now() - lastRefreshTime < REFRESH_COOLDOWN_MS) return;
+  isRefreshing = true;
+
+  const ind = $('refresh-indicator');
+  if (ind) {
+    ind.classList.remove('hidden', 'flash-success');
+  }
+  showTopBar();
+
+  try {
+    const res = await apiGet('getAll');
+    if (res.error) throw new Error(res.error);
+    DB = res;
+    receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template || {});
+    renderAll();
+    lastRefreshTime = Date.now();
+
+    if (ind) {
+      ind.classList.add('flash-success');
+      const ico = ind.querySelector('i');
+      if (ico) ico.className = 'fa-solid fa-check text-xs';
+      const txt = ind.querySelector('span');
+      if (txt) txt.textContent = 'Updated';
+    }
+  } catch(e){
+    console.warn('Silent refresh error:', e);
+    if (ind) {
+      const ico = ind.querySelector('i');
+      if (ico) ico.className = 'fa-solid fa-exclamation-triangle text-xs';
+      const txt = ind.querySelector('span');
+      if (txt) txt.textContent = 'Gagal';
+    }
+  } finally {
+    isRefreshing = false;
+    setTimeout(() => {
+      if (ind) {
+        ind.classList.add('hidden');
+        ind.classList.remove('flash-success');
+        const ico = ind.querySelector('i');
+        if (ico) ico.className = 'fa-solid fa-rotate fa-spin text-brandOrange text-xs';
+        const txt = ind.querySelector('span');
+        if (txt) txt.textContent = 'Refresh...';
+      }
+    }, 900);
+  }
+}
 
 /* ============================================================
    HELPERS
@@ -1021,42 +1083,11 @@ function updatePaperUI(){
 }
 function getCharsPerLine(){ return paperSize === '80' ? 48 : 32; }
 
-// ✅ CHANGE #2: Silent refresh — auto reload data saat ganti tab
-async function silentRefresh(){
-  if (isRefreshing) return;
-  if (Date.now() - lastRefreshTime < REFRESH_COOLDOWN_MS) return;
-  isRefreshing = true;
-  try {
-    const res = await apiGet('getAll');
-    if (res.error) throw new Error(res.error);
-    DB = res;
-    receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template || {});
-    renderAll();
-    lastRefreshTime = Date.now();
-  } catch(e){
-    console.warn('Silent refresh error:', e);
-  } finally {
-    isRefreshing = false;
-  }
-}
-
-// ✅ CHANGE #3: applyResponse — handle partial + reset timestamp
 function applyResponse(res){
   if(!res) return;
   lastRefreshTime = Date.now();
   if(res._full){ DB = res; renderAll(); return; }
   let needDash = false;
-
-  // Handle partial sparepart (checkout keluar)
-  if(res._sparepart_partial && Array.isArray(res._sparepart_partial)){
-    res._sparepart_partial.forEach(u => {
-      const s = DB.sparepart.find(x => String(x.id) === String(u.id));
-      if(s) s.stok = u.stok;
-    });
-    renderSparepartTable(); renderPosCatalog();
-    needDash = true;
-  }
-
   if(res.pusat){ DB.pusat = res.pusat; renderCabangCards(); renderHistoryTable(); renderMotorTrxTable(); renderMotorTable(); needDash = true; }
   if(res.template){ receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template); }
   if(res.kategori){ DB.kategori = res.kategori; renderKategoriList(); renderKategoriDropdown(); }
@@ -1069,7 +1100,6 @@ function applyResponse(res){
   if(needDash) renderDashboard();
 }
 
-// ✅ CHANGE #4: loadData — set lastRefreshTime
 async function loadData(){
   try {
     const res = await apiGet('getAll');
@@ -1092,7 +1122,7 @@ function renderAll(){
 }
 
 /* ============================================================
-   KATEGORI
+   KATEGORI SPAREPART
    ============================================================ */
 function renderKategoriDropdown(){
   const sel = $('sp-category');
@@ -1132,9 +1162,7 @@ async function saveKategoriFromModal(e){
     renderKategoriList(); renderKategoriDropdown();
     $('kat-nama').value = '';
     toast('Kategori "' + nama + '" ditambahkan');
-  } catch(err){
-    toast(err.message, 'error');
-  }
+  } catch(err){ toast(err.message, 'error'); }
 }
 async function deleteKategori(id, btn){
   const k = (DB.kategori||[]).find(x => String(x.id) === String(id));
@@ -1272,8 +1300,6 @@ function switchTab(tab){
   if(dashVisible) setTimeout(renderCharts, 60);
   closeMobileSidebar();
   window.scrollTo({top:0, behavior:'smooth'});
-
-  // ✅ CHANGE #5: Auto-refresh data saat ganti tab
   silentRefresh();
 }
 function switchMotorSub(sub){
@@ -1524,9 +1550,10 @@ async function processPosCheckout(btn){
     const res = await apiPost('checkoutKeluar', payload);
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
-    lastRefreshTime = Date.now();
+    DB.sparepart = res.sparepart; DB.trxKeluar = res.trxKeluar;
     cart = []; $('pos-notes').value = '';
-    applyResponse(res);
+    renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart(); renderDashboard();
+    lastRefreshTime = Date.now();
     toast('Berhasil');
     printReceiptKeluar(res.trx);
   } catch(err){ clearLoading(btn); toast(err.message, 'error'); }
@@ -1938,11 +1965,11 @@ async function processMotorCheckout(btn){
     const res = await apiPost('checkoutMotor', payload);
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
-    lastRefreshTime = Date.now();
     DB.motor = res.motor; DB.trxMotor = res.trxMotor;
     motorCart = []; $('motor-buyer').value=''; $('motor-notes').value='';
     renderMotorTable(); renderMotorCatalog(); renderMotorCart(); renderMotorTrxTable(); renderDashboard(); renderBranchOptions();
-    toast('Berhasil');
+    lastRefreshTime = Date.now();
+    toast('Berhasil — ' + (Array.isArray(res.trx) ? res.trx.length : 1) + ' unit tercetak');
     printReceiptMotor(res.trx);
   } catch(err){ clearLoading(btn); toast(err.message,'error'); }
 }
@@ -2013,8 +2040,8 @@ async function deleteMotorTrx(id, btn){
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
     DB.motor = res.motor; DB.trxMotor = res.trxMotor;
-    lastRefreshTime = Date.now();
     renderMotorTable(); renderMotorCatalog(); renderMotorTrxTable(); renderDashboard(); renderBranchOptions();
+    lastRefreshTime = Date.now();
     toast('Dihapus, motor dikembalikan ke Motor Kantor');
   } catch(err){ clearLoading(btn); toast(err.message,'error'); }
 }
@@ -2027,31 +2054,22 @@ async function kembalikanKeKeranjang(id, btn){
     '• Motor kembali berstatus "Menunggu Transaksi"\n' +
     '• Motor muncul di katalog Penjualan Motor'
   )) return;
-
   setLoading(btn, '');
   showTopBar();
   try {
     const res = await apiPost('kembalikanKeKeranjang', { id });
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
-
     DB.motor    = res.motor || DB.motor;
     DB.trxMotor = res.trxMotor || DB.trxMotor;
+    renderMotorTable(); renderMotorCatalog(); renderMotorCart();
+    renderMotorTrxTable(); renderDashboard(); renderBranchOptions();
     lastRefreshTime = Date.now();
-
-    renderMotorTable();
-    renderMotorCatalog();
-    renderMotorCart();
-    renderMotorTrxTable();
-    renderDashboard();
-    renderBranchOptions();
-
     const plat = (res._info && res._info.plat) || t.plat;
     toast('Motor ' + plat + ' dikembalikan ke keranjang. Buka tab Penjualan untuk lihat.');
   } catch(err){
     clearLoading(btn);
     toast('Gagal: ' + err.message, 'error');
-    console.error('kembalikanKeKeranjang error:', err);
   }
 }
 function exportRekapMotorTrx(){
@@ -2343,7 +2361,7 @@ async function connectBluetoothPrinter(){
   } catch(err){
     btChar = null; btDeviceName = null; btDevice = null;
     updatePrinterStatusUI();
-    if(err.name === 'NotFoundError' || err.message.includes('cancel')) { /* user cancel */ }
+    if(err.name === 'NotFoundError' || err.message.includes('cancel')) { }
     else toast('Gagal: ' + err.message, 'error');
   }
 }
@@ -2383,6 +2401,7 @@ function wrapText(text, width){
 function padRight(str, len){ str = String(str); return str.length >= len ? str.substring(0,len) : str + ' '.repeat(len - str.length); }
 function twoCol(left, right, width){ left = String(left||''); right = String(right||''); const space = width - right.length; if(left.length >= space) return padRight(left.substring(0, space-1), space-1) + ' ' + right; return padRight(left, space) + right; }
 function center(text, width){ text = String(text||''); if(text.length >= width) return text.substring(0, width); const pad = Math.floor((width - text.length) / 2); return ' '.repeat(pad) + text; }
+
 function buildReceiptKeluar(t){
   const W = getCharsPerLine(); const L = getLine(); const items = t.items || []; const lines = [];
   const T = receiptTemplate;
@@ -2410,24 +2429,48 @@ function buildReceiptKeluar(t){
   lines.push('');
   return lines.join('\n');
 }
-function buildReceiptMotor(t){
-  const W = getCharsPerLine(); const L = getLine(); const lines = [];
+
+/* ============================================================
+   RECEIPT MOTOR — MULTI SUPPORT
+   Jika array berisi >1 → 1 nota untuk semua motor
+   ============================================================ */
+function buildReceiptMotor(data){
+  const arr = Array.isArray(data) ? data : [data];
+  const W = getCharsPerLine();
+  const L = getLine();
   const T = receiptTemplate;
+  const lines = [];
+
   if(T.store) lines.push(center(T.store, W));
   if(T.address) lines.push(center(T.address, W));
   lines.push(L);
-  lines.push('No  : ' + t.id);
-  lines.push('Tgl : ' + fmtDateTime(t.tanggal));
-  lines.push('Plat: ' + t.plat);
-  lines.push('Unit: ' + t.model + (t.tahunMotor ? ' (' + t.tahunMotor + ')' : ''));
-  if(t.noMesin) lines.push('Mesin : ' + t.noMesin);
-  if(t.noRangka) lines.push('Rangka: ' + t.noRangka);
-  if(t.atasNama) lines.push('STNK  : ' + t.atasNama);
+
+  const first = arr[0] || {};
+  lines.push('No  : ' + (first.id || '-'));
+  lines.push('Tgl : ' + fmtDateTime(first.tanggal || new Date().toISOString()));
+  lines.push('Pembeli : ' + (first.pembeli || '-'));
+  lines.push('Metode  : ' + (first.metode || '-'));
   lines.push(L);
-  lines.push('Pembeli : ' + (t.pembeli||'-'));
-  lines.push('Metode  : ' + (t.metode||'-'));
-  lines.push(twoCol('HARGA', rp(t.hargaJual), W));
-  if(t.catatan){ lines.push(L); wrapText('Catatan: ' + t.catatan, W).forEach(l => lines.push(l)); }
+
+  let grandTotal = 0;
+  arr.forEach((t, idx) => {
+    lines.push('[' + (idx + 1) + '] ' + (t.plat || '-') + ' - ' + (t.model || '-'));
+    if (t.tahunMotor) lines.push('    Tahun : ' + t.tahunMotor);
+    if (t.noMesin)   lines.push('    Mesin : ' + t.noMesin);
+    if (t.noRangka)  lines.push('    Rangka: ' + t.noRangka);
+    if (t.atasNama)  lines.push('    STNK  : ' + t.atasNama);
+    lines.push(twoCol('    Harga', rp(t.hargaJual), W));
+    grandTotal += Number(t.hargaJual) || 0;
+    if (idx < arr.length - 1) lines.push(L);
+  });
+  lines.push(L);
+  lines.push(twoCol('TOTAL UNIT', arr.length + ' Unit', W));
+  lines.push(twoCol('TOTAL HARGA', rp(grandTotal), W));
+
+  if (first.catatan) {
+    lines.push(L);
+    wrapText('Catatan: ' + first.catatan, W).forEach(l => lines.push(l));
+  }
   lines.push(L);
   if(T.footer1) lines.push(center(T.footer1, W));
   lines.push(center('Bukti Penjualan Resmi', W));
@@ -2437,11 +2480,21 @@ function buildReceiptMotor(t){
   lines.push('');
   return lines.join('\n');
 }
+
 function receiptToHtml(text){ return '<div class="rp-line">' + esc(text).replace(/\n/g,'<br>').replace(/ /g,'&nbsp;') + '</div>'; }
 function printReceiptKeluar(t){ printThermal(buildReceiptKeluar(t), 'keluar'); }
 function printReceiptKeluarById(id){ const t = DB.trxKeluar.find(x => String(x.id) === String(id)); if(t) printReceiptKeluar(t); }
-function printReceiptMotor(t){ printThermal(buildReceiptMotor(t), 'motor'); }
-function printReceiptMotorById(id){ const t = DB.trxMotor.find(x => String(x.id) === String(id)); if(t) printReceiptMotor(t); }
+
+/* printReceiptMotor sekarang terima single ATAU array */
+function printReceiptMotor(data){
+  const text = buildReceiptMotor(data);
+  printThermal(text, 'motor');
+}
+function printReceiptMotorById(id){
+  const t = DB.trxMotor.find(x => String(x.id) === String(id));
+  if(t) printReceiptMotor(t);
+}
+
 function printThermal(text, type){
   const el = $('printable-receipt'); el.setAttribute('data-paper', paperSize); el.innerHTML = receiptToHtml(text);
   if(btChar){
