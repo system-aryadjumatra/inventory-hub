@@ -66,9 +66,22 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
 .preset-btn{transition:all .2s;}
 .preset-btn.active{background-color:rgba(249,115,22,.15);border-color:rgba(249,115,22,.4);color:#fb923c;}
 
-#refresh-indicator{ display: none; align-items: center; gap: 6px; }
+/* =========================================================
+   REFRESH INDICATOR (sekarang BUTTON, bisa diklik manual)
+   ========================================================= */
+#refresh-indicator{
+  display: none;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform .15s ease, background .2s ease;
+}
 #refresh-indicator.show{ display: flex; }
+#refresh-indicator:hover{ background: rgba(249,115,22,.2); }
+#refresh-indicator:active{ transform: scale(0.94); }
 #refresh-indicator .ri-icon{ font-size: 11px; color: #f97316; }
+
 #refresh-indicator.flash-success{ background-color: rgba(16,185,129,.15) !important; border-color: rgba(16,185,129,.4) !important; color: #34d399 !important; }
 #refresh-indicator.flash-success .ri-icon{ color:#34d399; }
 #refresh-indicator.flash-error{ background-color: rgba(244,63,94,.15) !important; border-color: rgba(244,63,94,.4) !important; color: #fb7185 !important; }
@@ -151,10 +164,12 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <i class="fa-solid fa-chart-pie text-brandOrange"></i> <span class="truncate">Dashboard</span></h2>
     </div>
     <div class="flex items-center gap-2 flex-shrink-0">
-      <div id="refresh-indicator" class="px-2 py-1 rounded-lg bg-brandOrange/10 border border-brandOrange/30">
+      <!-- REFRESH INDICATOR = BUTTON (bisa diklik manual) -->
+      <button id="refresh-indicator" onclick="manualRefresh()" title="Klik untuk refresh data"
+        class="px-2 py-1 rounded-lg bg-brandOrange/10 border border-brandOrange/30">
         <i class="ri-icon fa-solid fa-rotate"></i>
-        <span class="text-[10px] text-brandOrange font-semibold hidden sm:inline">Refresh...</span>
-      </div>
+        <span class="text-[10px] text-brandOrange font-semibold hidden sm:inline">Refresh</span>
+      </button>
       <button id="pending-badge" onclick="syncPendingQueue(true)" class="hidden items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 text-[10px] font-bold" title="Transaksi offline menunggu sinkron">
         <i class="fa-solid fa-cloud-arrow-up"></i><span id="pending-count">0</span>
       </button>
@@ -627,7 +642,6 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
       <h3 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-truck-field text-brandOrange"></i> Kelola Supplier</h3>
       <button onclick="closeModal('supplier-modal')" class="text-slate-400 hover:text-white w-8 h-8 rounded-lg hover:bg-slate-800"><i class="fa-solid fa-xmark text-lg"></i></button></div>
 
-    <!-- Form Tambah Supplier -->
     <form onsubmit="saveSupplierFromModal(event)" class="space-y-2 mb-4 bg-slate-900 rounded-xl p-3">
       <p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Tambah Supplier Baru</p>
       <input type="text" id="sup-nama" required placeholder="Nama supplier *" class="w-full bg-slate-800 border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange">
@@ -1024,7 +1038,7 @@ async function apiPost(action, data){
 }
 
 /* ============================================================
-   OFFLINE CACHE (DB ke localStorage)
+   OFFLINE CACHE
    ============================================================ */
 const DB_CACHE_KEY = 'ajihub_db_cache_v1';
 
@@ -1156,6 +1170,13 @@ const DEFAULT_TEMPLATE = {
 };
 let receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE);
 
+/* ============================================================
+   REFRESH STATE — DIPERBAIKI
+   - initialLoadDone : cegah auto-refresh sebelum loadData pertama selesai
+   - isRefreshing    : cegah double-fetch
+   - lastRefreshTime : cooldown antar auto-refresh (3 detik)
+   ============================================================ */
+let initialLoadDone = false;      // BARU: guard
 let lastRefreshTime = 0;
 let isRefreshing = false;
 const REFRESH_COOLDOWN_MS = 3000;
@@ -1265,6 +1286,7 @@ async function loadData(){
   if (!navigator.onLine) {
     if (hasCache) toast('Mode offline — menampilkan data cache');
     else { toast('Offline & belum ada data cache. Buka online dulu.', 'error'); hideLoader(); }
+    initialLoadDone = true;   // BARU
     return;
   }
 
@@ -1279,6 +1301,8 @@ async function loadData(){
   } catch(err){
     if (!hasCache) { toast('Gagal memuat: ' + err.message, 'error'); hideLoader(); }
     else toast('Gagal update — pakai data cache', 'error');
+  } finally {
+    initialLoadDone = true;   // BARU: loadData selesai
   }
 }
 
@@ -1321,6 +1345,9 @@ function renderCurrentTab(){
   renderDashboardMetrics();
 }
 
+/* ============================================================
+   REFRESH INDICATOR + LOGIC
+   ============================================================ */
 let _hideTimer = null;
 let _hardTimer = null;
 
@@ -1366,7 +1393,7 @@ function hideRefreshIndicator(){
   if(!ind) return;
   ind.classList.remove('show','flash-success','flash-error','bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
   _setIndicatorIcon('fa-solid fa-rotate');
-  _setIndicatorText('Refresh...', 'text-[10px] text-brandOrange font-semibold hidden sm:inline');
+  _setIndicatorText('Refresh', 'text-[10px] text-brandOrange font-semibold hidden sm:inline');
 }
 
 function scheduleHideIndicator(delayMs){
@@ -1374,6 +1401,9 @@ function scheduleHideIndicator(delayMs){
   _hideTimer = setTimeout(hideRefreshIndicator, delayMs);
 }
 
+/* ============================================================
+   SILENT REFRESH — dipakai auto-refresh antar tab
+   ============================================================ */
 async function silentRefresh(force){
   if (isRefreshing) return;
   if (!force && Date.now() - lastRefreshTime < REFRESH_COOLDOWN_MS) return;
@@ -1416,6 +1446,36 @@ async function silentRefresh(force){
     scheduleHideIndicator(1500);
   } finally {
     isRefreshing = false;
+  }
+}
+
+/* ============================================================
+   MANUAL REFRESH — dipicu saat user klik tombol refresh
+   Bypass cooldown, selalu kasih feedback
+   ============================================================ */
+async function manualRefresh(){
+  if (isRefreshing) {
+    toast('Sedang menyegarkan data...');
+    return;
+  }
+  if (!navigator.onLine) {
+    toast('Tidak ada koneksi internet. Buka online dulu.', 'error');
+    return;
+  }
+
+  // Set flag supaya silentRefresh benar-benar jalan
+  lastRefreshTime = 0;
+  await silentRefresh(true);
+
+  // Beri feedback tambahan setelah selesai
+  if (!isRefreshing) {
+    // Cek hasil: cek apakah indikator sukses atau error
+    const ind = $('refresh-indicator');
+    if (ind && ind.classList.contains('flash-success')) {
+      toast('Data berhasil diperbarui');
+    } else if (ind && ind.classList.contains('flash-error')) {
+      toast('Gagal memperbarui data', 'error');
+    }
   }
 }
 
@@ -1653,7 +1713,7 @@ async function savePusat(e, btn){
 }
 
 /* ============================================================
-   NAVIGASI
+   NAVIGASI — DIPERBAIKI: skip auto-refresh saat initial load
    ============================================================ */
 const PAGE_TITLES = {'dashboard':['fa-chart-pie','Dashboard'],'sparepart':['fa-box','Master Sparepart'],'transaksi-sparepart':['fa-cart-arrow-down','Transaksi Keluar POS'],'riwayat-transaksi':['fa-receipt','Riwayat Transaksi'],'motor':['fa-motorcycle','Motor Kantor'],'transaksi-motor':['fa-wrench','Transaksi Motor'],'cabang':['fa-code-branch','Data Cabang']};
 
@@ -1665,7 +1725,7 @@ function switchTab(tab){
   const nav = document.querySelector(`.nav-item[data-tab="${tab}"]`);
   if(nav){ nav.classList.add('bg-brandOrange/10','text-brandOrange'); nav.classList.remove('text-slate-400'); }
   document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
-  const bnav = document.querySelector(`.bottom-nav button[data-tab="${tab}"]`);
+  const bnav = document.querySelector('.bottom-nav button[data-tab="' + tab + '"]');
   if(bnav) bnav.classList.add('active');
   const [icon,title] = PAGE_TITLES[tab] || ['fa-circle',''];
   $('page-title').innerHTML = `<i class="fa-solid ${icon} text-brandOrange"></i> <span class="truncate">${title}</span>`;
@@ -1673,8 +1733,11 @@ function switchTab(tab){
   if(dashVisible) setTimeout(renderCharts, 60);
   closeMobileSidebar();
 
-  if (lastTab !== tab) {
-    lastTab = tab;
+  // Auto-refresh HANYA saat tab berubah DAN initial load sudah selesai
+  const tabChanged = (lastTab !== tab);
+  lastTab = tab;
+
+  if (tabChanged && initialLoadDone) {
     silentRefresh(false);
   }
 }
@@ -1886,7 +1949,6 @@ function openSparepartModal(id){
     $('sp-pricebuy').value = s.hargaBeli||'';
     $('sp-stock').value = s.stok!==0 ? s.stok : '';
     $('sp-minstock').value = s.minStok!==0 ? s.minStok : '';
-    // Set supplier value AFTER dropdown rendered
     setTimeout(()=>{ $('sp-supplier').value = s.supplier||''; }, 0);
   } else {
     $('sparepart-modal-title').textContent = 'Tambah Sparepart';
@@ -3116,7 +3178,9 @@ function tickClock(){
 setInterval(tickClock, 1000); tickClock();
 
 document.addEventListener('DOMContentLoaded', () => {
-  switchTab('dashboard'); switchMotorSub('jual');
+  // Set tab default tanpa auto-refresh (karena initialLoadDone belum true)
+  switchTab('dashboard');
+  switchMotorSub('jual');
   updatePaperUI(); updatePrinterStatusUI(); checkBluetoothSupport();
   updatePendingBadge();
   updateOnlineStatus();
@@ -3131,6 +3195,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.addEventListener('resize', () => { if(window.innerWidth >= 768) closeMobileSidebar(); });
   document.addEventListener('keydown', (e) => { if(e.key === 'Escape'){ document.querySelectorAll('.modal-container').forEach(m => m.classList.add('hidden')); } });
+
+  // Load data awal (set initialLoadDone = true di finally)
   loadData();
 });
 </script>
