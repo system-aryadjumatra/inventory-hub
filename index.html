@@ -155,11 +155,9 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <i class="ri-icon fa-solid fa-rotate"></i>
         <span class="text-[10px] text-brandOrange font-semibold hidden sm:inline">Refresh...</span>
       </div>
-      <!-- Pending sync badge -->
       <button id="pending-badge" onclick="syncPendingQueue(true)" class="hidden items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 text-[10px] font-bold" title="Transaksi offline menunggu sinkron">
         <i class="fa-solid fa-cloud-arrow-up"></i><span id="pending-count">0</span>
       </button>
-      <!-- Offline indicator -->
       <button id="offline-indicator" class="hidden items-center gap-1 px-2 py-1 rounded-lg bg-rose-500/15 border border-rose-500/40 text-rose-400 text-[10px] font-bold" title="Mode Offline">
         <i class="fa-solid fa-wifi"></i>
       </button>
@@ -199,7 +197,6 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         </div>
       </div>
 
-      <!-- METRICS BISNIS -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div class="bg-gradient-to-br from-emerald-500/10 to-darkCard p-3 sm:p-4 rounded-2xl border border-emerald-500/30">
           <p class="text-[10px] sm:text-[11px] font-medium text-emerald-300 truncate">Pendapatan</p>
@@ -235,7 +232,6 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         </div>
       </div>
 
-      <!-- CHART PENJUALAN & KEUNTUNGAN -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div class="lg:col-span-2 bg-darkCard p-4 sm:p-5 rounded-2xl border border-darkBorder">
           <h4 class="text-sm font-bold text-white mb-3 flex items-center justify-between">
@@ -984,7 +980,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
 const API_URL = 'https://script.google.com/macros/s/AKfycbx28-VHy1d5kK4WsJ0xczsfMT9rv-Ow_eLKfTXSG8QXBnOdvFWO-SdGb0M0G34V4v5iKw/exec';
 
 async function apiGet(action){
-  const res = await fetch(`${API_URL}?action=${encodeURIComponent(action)}`);
+  const res = await fetch(`${API_URL}?action=${encodeURIComponent(action)}`, { cache:'no-store' });
   return await res.json();
 }
 async function apiPost(action, data){
@@ -997,7 +993,34 @@ async function apiPost(action, data){
 }
 
 /* ============================================================
-   OFFLINE QUEUE & SERVICE WORKER
+   OFFLINE CACHE (DB ke localStorage)
+   ============================================================ */
+const DB_CACHE_KEY = 'ajihub_db_cache_v1';
+
+function saveDBCache(){
+  try {
+    localStorage.setItem(DB_CACHE_KEY, JSON.stringify({
+      db: DB,
+      template: receiptTemplate,
+      ts: Date.now()
+    }));
+  } catch(e){ console.warn('saveDBCache error', e); }
+}
+
+function loadDBCache(){
+  try {
+    const raw = localStorage.getItem(DB_CACHE_KEY);
+    if(!raw) return false;
+    const obj = JSON.parse(raw);
+    if(!obj || !obj.db) return false;
+    DB = Object.assign({ sparepart:[], cabang:[], motor:[], trxKeluar:[], trxMotor:[], motorLog:[], pusat:null, template:null, kategori:[] }, obj.db);
+    if(obj.template) receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, obj.template);
+    return true;
+  } catch(e){ console.warn('loadDBCache error', e); return false; }
+}
+
+/* ============================================================
+   OFFLINE QUEUE
    ============================================================ */
 const PENDING_KEY = 'ajihub_pending_queue';
 
@@ -1056,6 +1079,7 @@ async function syncPendingQueue(manual){
     if (res.motor) DB.motor = res.motor;
     if (res.trxKeluar) DB.trxKeluar = res.trxKeluar;
     if (res.trxMotor) DB.trxMotor = res.trxMotor;
+    saveDBCache();
     renderCurrentTab();
 
     showRefreshIndicator('success');
@@ -1075,7 +1099,7 @@ if ('serviceWorker' in navigator) {
 }
 
 window.addEventListener('online', () => { updateOnlineStatus(); toast('Kembali online'); setTimeout(()=>syncPendingQueue(false), 800); });
-window.addEventListener('offline', () => { updateOnlineStatus(); toast('Anda offline — transaksi akan disimpan lokal', 'error'); });
+window.addEventListener('offline', () => { updateOnlineStatus(); toast('Anda offline — data cache tetap bisa digunakan', 'error'); });
 
 setInterval(() => { if (navigator.onLine && getPendingQueue().length) syncPendingQueue(false); }, 30000);
 
@@ -1181,7 +1205,7 @@ function getCharsPerLine(){ return paperSize === '80' ? 48 : 32; }
 function applyResponse(res){
   if(!res) return;
   lastRefreshTime = Date.now();
-  if(res._full){ DB = res; renderAll(); return; }
+  if(res._full){ DB = res; saveDBCache(); renderAll(); return; }
   if(res.pusat){ DB.pusat = res.pusat; }
   if(res.template){ receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template); }
   if(res.kategori){ DB.kategori = res.kategori; }
@@ -1191,20 +1215,42 @@ function applyResponse(res){
   if(res.trxKeluar){ DB.trxKeluar = res.trxKeluar; }
   if(res.trxMotor){ DB.trxMotor = res.trxMotor; }
   if(res.motorLog){ DB.motorLog = res.motorLog; }
+  saveDBCache();
   renderAll();
 }
 
+/* ============================================================
+   LOAD DATA — OFFLINE-FIRST
+   ============================================================ */
 async function loadData(){
+  // 1. Coba tampilkan data cache DULU (langsung tampil kalau ada)
+  const hasCache = loadDBCache();
+  if (hasCache) {
+    renderAll();
+    hideLoader();
+    checkBluetoothSupport();
+  }
+
+  // 2. Kalau offline → selesai (pakai cache)
+  if (!navigator.onLine) {
+    if (hasCache) toast('Mode offline — menampilkan data cache');
+    else { toast('Offline & belum ada data cache. Buka online dulu.', 'error'); hideLoader(); }
+    return;
+  }
+
+  // 3. Kalau online → fetch dari API, update cache
   try {
     const res = await apiGet('getAll');
     if(res.error) throw new Error(res.error);
     DB = res;
     receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template || {});
+    saveDBCache();
     renderAll(); hideLoader(); checkBluetoothSupport();
     lastRefreshTime = Date.now();
   } catch(err){
-    toast('Gagal memuat: ' + err.message, 'error');
-    hideLoader();
+    // API gagal, tetap pakai cache kalau ada
+    if (!hasCache) { toast('Gagal memuat: ' + err.message, 'error'); hideLoader(); }
+    else toast('Gagal update — pakai data cache', 'error');
   }
 }
 
@@ -1301,6 +1347,8 @@ function scheduleHideIndicator(delayMs){
 async function silentRefresh(force){
   if (isRefreshing) return;
   if (!force && Date.now() - lastRefreshTime < REFRESH_COOLDOWN_MS) return;
+  // Kalau offline → skip refresh (data cache tetap tampil)
+  if (!navigator.onLine) return;
 
   isRefreshing = true;
   showRefreshIndicator('loading');
@@ -1325,6 +1373,7 @@ async function silentRefresh(force){
 
     DB = data;
     receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, data.template || {});
+    saveDBCache();
     renderCurrentTab();
     lastRefreshTime = Date.now();
 
@@ -1375,6 +1424,7 @@ async function saveKategoriFromModal(e){
     const res = await apiPost('saveKategori', { nama });
     if(res.error) throw new Error(res.error);
     DB.kategori = res.kategori;
+    saveDBCache();
     renderKategoriList(); renderKategoriDropdown();
     $('kat-nama').value = '';
     toast('Kategori "' + nama + '" ditambahkan');
@@ -1390,6 +1440,7 @@ async function deleteKategori(id, btn){
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
     DB.kategori = res.kategori;
+    saveDBCache();
     renderKategoriList(); renderKategoriDropdown();
     toast('Kategori dihapus');
   } catch(err){ clearLoading(btn); toast(err.message, 'error'); }
@@ -1456,6 +1507,7 @@ async function saveTemplateSettings(){
     const res = await apiPost('saveTemplate', T);
     if(res.error) throw new Error(res.error);
     receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template);
+    saveDBCache();
     closeModal('template-modal');
     toast('Template tersimpan di semua device');
   } catch(err){ toast('Gagal simpan: ' + err.message, 'error'); }
@@ -1466,6 +1518,7 @@ async function resetTemplateSettings(){
     const res = await apiPost('resetTemplate', {});
     if(res.error) throw new Error(res.error);
     receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template);
+    saveDBCache();
     openTemplateSettings();
     toast('Template direset ke default');
   } catch(err){ toast('Gagal reset: ' + err.message, 'error'); }
@@ -1491,6 +1544,7 @@ async function savePusat(e, btn){
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
     DB.pusat = res.pusat;
+    saveDBCache();
     closeModal('pusat-modal');
     renderAll();
     toast('Data pusat tersimpan');
@@ -1602,7 +1656,6 @@ function renderDashboard(){
 function renderCharts(){
   if(!dashVisible) return;
 
-  // Doughnut: Motor per cabang
   const labels = ['Pusat'].concat(DB.cabang.map(c => c.nama));
   const dataBranch = [DB.motor.filter(m => m.cabangId===PUSAT_ID && m.status!=='Terjual').length]
     .concat(DB.cabang.map(c => DB.motor.filter(m => String(m.cabangId)===String(c.id) && m.status!=='Terjual').length));
@@ -1615,7 +1668,6 @@ function renderCharts(){
     });
   } else { chartBranch.data.labels = labels; chartBranch.data.datasets[0].data = dataBranch; chartBranch.update('none'); }
 
-  // Bar: Pergerakan barang
   const last7 = [...Array(7)].map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(6-i)); return d; });
   const labelsM = last7.map(d => d.toLocaleDateString('id-ID',{day:'2-digit',month:'short'}));
   const dataM = last7.map(d => { const key = d.toISOString().substring(0,10); return DB.trxKeluar.filter(t => String(t.tanggal).substring(0,10) === key).reduce((a,b)=> a + Number(b.totalItem||0), 0); });
@@ -1630,7 +1682,6 @@ function renderCharts(){
     });
   } else { chartMovement.data.labels = labelsM; chartMovement.data.datasets[0].data = dataM; chartMovement.update('none'); }
 
-  // Bar + Line: Penjualan & Keuntungan
   const salesData = last7.map(d => {
     const key = d.toISOString().substring(0,10);
     return DB.trxKeluar.filter(t => String(t.tanggal).substring(0,10) === key)
@@ -1666,7 +1717,6 @@ function renderCharts(){
     }
   }
 
-  // Doughnut: Penjualan per kategori
   const catMap = {};
   DB.trxKeluar.forEach(t => {
     (t.items||[]).forEach(i => {
@@ -1906,6 +1956,7 @@ async function processPosCheckout(btn){
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
     DB.sparepart = res.sparepart; DB.trxKeluar = res.trxKeluar;
+    saveDBCache();
     cart = []; $('pos-notes').value = '';
     renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart(); renderDashboard(); renderBranchOptions();
     lastRefreshTime = Date.now();
@@ -1924,6 +1975,7 @@ async function processPosCheckout(btn){
         if (s) s.stok = Math.max(0, Number(s.stok) - Number(it.qty));
       });
       DB.trxKeluar.push(Object.assign({}, receiptData, { _offline:true }));
+      saveDBCache();
       cart = []; $('pos-notes').value = '';
       renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart(); renderDashboard();
       toast('Mode offline — transaksi disimpan & akan disinkron otomatis');
@@ -2312,6 +2364,7 @@ async function kembalikanMotor(id, btn){
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
     DB.motor = res.motor;
+    saveDBCache();
     motorCart = motorCart.filter(c => String(c.id) !== String(id));
     renderMotorCart(); renderMotorTable(); renderMotorCatalog(); renderDashboardMetrics();
     renderBranchOptions();
@@ -2362,6 +2415,7 @@ async function processMotorCheckout(btn){
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
     DB.motor = res.motor; DB.trxMotor = res.trxMotor;
+    saveDBCache();
     const count = Array.isArray(res.trx) ? res.trx.length : 1;
     motorCart = []; $('motor-buyer').value=''; $('motor-notes').value='';
     renderMotorTable(); renderMotorCatalog(); renderMotorCart(); renderMotorTrxTable(); renderDashboardMetrics(); renderBranchOptions();
@@ -2389,6 +2443,7 @@ async function processMotorCheckout(btn){
         if (mm) { mm.status = 'Terjual'; mm.hargaJual = m.harga; }
       });
       receiptData.forEach(r => DB.trxMotor.push(Object.assign({}, r, { _offline:true })));
+      saveDBCache();
       motorCart = []; $('motor-buyer').value=''; $('motor-notes').value='';
       renderMotorTable(); renderMotorCatalog(); renderMotorCart(); renderMotorTrxTable(); renderDashboardMetrics(); renderBranchOptions();
       toast('Mode offline — penjualan disimpan & akan disinkron otomatis');
@@ -2463,6 +2518,7 @@ async function deleteMotorTrx(id, btn){
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
     DB.motor = res.motor; DB.trxMotor = res.trxMotor;
+    saveDBCache();
     renderMotorTable(); renderMotorCatalog(); renderMotorTrxTable(); renderDashboardMetrics(); renderBranchOptions();
     lastRefreshTime = Date.now();
     toast('Dihapus, motor dikembalikan ke Motor Kantor');
@@ -2485,6 +2541,7 @@ async function kembalikanKeKeranjang(id, btn){
     if(res.error) throw new Error(res.error);
     DB.motor    = res.motor || DB.motor;
     DB.trxMotor = res.trxMotor || DB.trxMotor;
+    saveDBCache();
     renderMotorTable(); renderMotorCatalog(); renderMotorCart();
     renderMotorTrxTable(); renderDashboardMetrics(); renderBranchOptions();
     lastRefreshTime = Date.now();
