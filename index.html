@@ -578,8 +578,13 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
           <button type="button" onclick="openKategoriModal()" title="Kelola Kategori" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl"><i class="fa-solid fa-gear text-xs"></i></button>
         </div>
       </div>
-      <div><label class="block text-[11px] text-slate-400 mb-1">Supplier</label>
-        <input type="text" id="sp-supplier" placeholder="Nama supplier" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+      <div>
+        <label class="block text-[11px] text-slate-400 mb-1">Supplier</label>
+        <div class="flex gap-2">
+          <select id="sp-supplier" class="flex-1 bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></select>
+          <button type="button" onclick="openSupplierModal()" title="Kelola Supplier" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl"><i class="fa-solid fa-truck-field text-xs"></i></button>
+        </div>
+      </div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="block text-[11px] text-slate-400 mb-1">Harga Beli <span class="text-rose-500">*</span></label>
           <input type="number" id="sp-pricebuy" min="0" required placeholder="0" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
@@ -612,6 +617,32 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
     </form>
     <div id="kategori-list" class="space-y-2 max-h-[300px] overflow-y-auto"></div>
     <button onclick="closeModal('kategori-modal')" class="w-full mt-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">Tutup</button>
+  </div>
+</div>
+
+<!-- MODAL KELOLA SUPPLIER -->
+<div id="supplier-modal" class="modal-container fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div class="modal-content bg-darkCard border border-darkBorder rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-truck-field text-brandOrange"></i> Kelola Supplier</h3>
+      <button onclick="closeModal('supplier-modal')" class="text-slate-400 hover:text-white w-8 h-8 rounded-lg hover:bg-slate-800"><i class="fa-solid fa-xmark text-lg"></i></button></div>
+
+    <!-- Form Tambah Supplier -->
+    <form onsubmit="saveSupplierFromModal(event)" class="space-y-2 mb-4 bg-slate-900 rounded-xl p-3">
+      <p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Tambah Supplier Baru</p>
+      <input type="text" id="sup-nama" required placeholder="Nama supplier *" class="w-full bg-slate-800 border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange">
+      <div class="grid grid-cols-2 gap-2">
+        <input type="text" id="sup-telepon" placeholder="Telepon" class="w-full bg-slate-800 border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange">
+        <input type="text" id="sup-kontak" placeholder="Nama kontak" class="w-full bg-slate-800 border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange">
+      </div>
+      <input type="text" id="sup-alamat" placeholder="Alamat" class="w-full bg-slate-800 border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange">
+      <button type="submit" class="w-full py-2 bg-brandOrange hover:bg-brandOrangeHover text-white text-xs font-bold rounded-lg">
+        <i class="fa-solid fa-plus mr-1"></i> Tambah Supplier</button>
+    </form>
+
+    <div class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2 px-1">Daftar Supplier</div>
+    <div id="supplier-list" class="space-y-2 max-h-[320px] overflow-y-auto"></div>
+    <button onclick="closeModal('supplier-modal')" class="w-full mt-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">Tutup</button>
   </div>
 </div>
 
@@ -1013,7 +1044,7 @@ function loadDBCache(){
     if(!raw) return false;
     const obj = JSON.parse(raw);
     if(!obj || !obj.db) return false;
-    DB = Object.assign({ sparepart:[], cabang:[], motor:[], trxKeluar:[], trxMotor:[], motorLog:[], pusat:null, template:null, kategori:[] }, obj.db);
+    DB = Object.assign({ sparepart:[], cabang:[], motor:[], trxKeluar:[], trxMotor:[], motorLog:[], pusat:null, template:null, kategori:[], supplier:[] }, obj.db);
     if(obj.template) receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, obj.template);
     return true;
   } catch(e){ console.warn('loadDBCache error', e); return false; }
@@ -1107,7 +1138,7 @@ setInterval(() => { if (navigator.onLine && getPendingQueue().length) syncPendin
    STATE
    ============================================================ */
 const PUSAT_ID = 'PUSAT';
-let DB = { sparepart:[], cabang:[], motor:[], trxKeluar:[], trxMotor:[], motorLog:[], pusat:null, template:null, kategori:[] };
+let DB = { sparepart:[], cabang:[], motor:[], trxKeluar:[], trxMotor:[], motorLog:[], pusat:null, template:null, kategori:[], supplier:[] };
 let cart = [], motorCart = [];
 let btChar = null, btDeviceName = null, btDevice = null;
 let chartMovement = null, chartBranch = null, chartSalesProfit = null, chartCategory = null;
@@ -1209,6 +1240,7 @@ function applyResponse(res){
   if(res.pusat){ DB.pusat = res.pusat; }
   if(res.template){ receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template); }
   if(res.kategori){ DB.kategori = res.kategori; }
+  if(res.supplier){ DB.supplier = res.supplier; }
   if(res.sparepart){ DB.sparepart = res.sparepart; }
   if(res.cabang){ DB.cabang = res.cabang; }
   if(res.motor){ DB.motor = res.motor; }
@@ -1223,7 +1255,6 @@ function applyResponse(res){
    LOAD DATA — OFFLINE-FIRST
    ============================================================ */
 async function loadData(){
-  // 1. Coba tampilkan data cache DULU (langsung tampil kalau ada)
   const hasCache = loadDBCache();
   if (hasCache) {
     renderAll();
@@ -1231,14 +1262,12 @@ async function loadData(){
     checkBluetoothSupport();
   }
 
-  // 2. Kalau offline → selesai (pakai cache)
   if (!navigator.onLine) {
     if (hasCache) toast('Mode offline — menampilkan data cache');
     else { toast('Offline & belum ada data cache. Buka online dulu.', 'error'); hideLoader(); }
     return;
   }
 
-  // 3. Kalau online → fetch dari API, update cache
   try {
     const res = await apiGet('getAll');
     if(res.error) throw new Error(res.error);
@@ -1248,7 +1277,6 @@ async function loadData(){
     renderAll(); hideLoader(); checkBluetoothSupport();
     lastRefreshTime = Date.now();
   } catch(err){
-    // API gagal, tetap pakai cache kalau ada
     if (!hasCache) { toast('Gagal memuat: ' + err.message, 'error'); hideLoader(); }
     else toast('Gagal update — pakai data cache', 'error');
   }
@@ -1269,6 +1297,8 @@ function renderAll(){
   renderCabangCards();
   renderKategoriDropdown();
   renderKategoriList();
+  renderSupplierDropdown();
+  renderSupplierList();
   updatePaperUI();
   updatePrinterStatusUI();
 }
@@ -1279,7 +1309,7 @@ function renderCurrentTab(){
   const id = active.id.replace('tab-', '');
   switch(id){
     case 'dashboard': renderDashboard(); break;
-    case 'sparepart': renderSparepartTable(); renderKategoriDropdown(); break;
+    case 'sparepart': renderSparepartTable(); renderKategoriDropdown(); renderSupplierDropdown(); break;
     case 'transaksi-sparepart': renderPosCatalog(); renderCart(); renderBranchOptions(); break;
     case 'riwayat-transaksi': renderHistoryTable(); break;
     case 'motor': renderMotorTable(); break;
@@ -1347,7 +1377,6 @@ function scheduleHideIndicator(delayMs){
 async function silentRefresh(force){
   if (isRefreshing) return;
   if (!force && Date.now() - lastRefreshTime < REFRESH_COOLDOWN_MS) return;
-  // Kalau offline → skip refresh (data cache tetap tampil)
   if (!navigator.onLine) return;
 
   isRefreshing = true;
@@ -1443,6 +1472,78 @@ async function deleteKategori(id, btn){
     saveDBCache();
     renderKategoriList(); renderKategoriDropdown();
     toast('Kategori dihapus');
+  } catch(err){ clearLoading(btn); toast(err.message, 'error'); }
+}
+
+/* ============================================================
+   SUPPLIER CRUD
+   ============================================================ */
+function renderSupplierDropdown(){
+  const sel = $('sp-supplier');
+  if(!sel) return;
+  const prev = sel.value;
+  const opts = (DB.supplier||[]).map(s => `<option value="${esc(s.nama)}">${esc(s.nama)}</option>`).join('');
+  sel.innerHTML = `<option value="">-- Pilih Supplier --</option>` + opts;
+  if(prev) sel.value = prev;
+}
+function renderSupplierList(){
+  const box = $('supplier-list');
+  if(!box) return;
+  if(!DB.supplier || !DB.supplier.length){
+    box.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">Belum ada supplier</p>`;
+    return;
+  }
+  box.innerHTML = DB.supplier.map(s => `
+    <div class="flex items-start justify-between bg-slate-900 rounded-xl px-3 py-2 gap-2">
+      <div class="min-w-0 flex-1">
+        <p class="text-xs font-semibold text-white truncate"><i class="fa-solid fa-truck-field text-brandOrange text-[10px] mr-1.5"></i>${esc(s.nama)}</p>
+        ${(s.telepon || s.kontak) ? `<p class="text-[10px] text-slate-400 mt-0.5 ml-4">${s.telepon ? '📞 '+esc(s.telepon) : ''}${s.telepon && s.kontak ? ' • ' : ''}${s.kontak ? '👤 '+esc(s.kontak) : ''}</p>` : ''}
+        ${s.alamat ? `<p class="text-[10px] text-slate-500 mt-0.5 ml-4 truncate">📍 ${esc(s.alamat)}</p>` : ''}
+      </div>
+      <button onclick="deleteSupplier('${s.id}', this)" class="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition flex-shrink-0">
+        <i class="fa-solid fa-trash text-[10px]"></i></button>
+    </div>`).join('');
+}
+function openSupplierModal(){
+  renderSupplierList();
+  ['sup-nama','sup-telepon','sup-alamat','sup-kontak'].forEach(id => { const el = $(id); if(el) el.value = ''; });
+  openModal('supplier-modal');
+  setTimeout(()=>{ const n = $('sup-nama'); if(n) n.focus(); }, 200);
+}
+async function saveSupplierFromModal(e){
+  e.preventDefault();
+  const nama = $('sup-nama').value.trim();
+  if(!nama) return toast('Nama supplier wajib diisi', 'error');
+  const data = {
+    nama,
+    telepon: $('sup-telepon').value.trim(),
+    alamat: $('sup-alamat').value.trim(),
+    kontak: $('sup-kontak').value.trim()
+  };
+  try {
+    const res = await apiPost('saveSupplier', data);
+    if(res.error) throw new Error(res.error);
+    DB.supplier = res.supplier;
+    saveDBCache();
+    renderSupplierList(); renderSupplierDropdown();
+    ['sup-nama','sup-telepon','sup-alamat','sup-kontak'].forEach(id => { const el = $(id); if(el) el.value = ''; });
+    toast('Supplier "' + nama + '" ditambahkan');
+    setTimeout(()=>{ const n = $('sup-nama'); if(n) n.focus(); }, 100);
+  } catch(err){ toast(err.message, 'error'); }
+}
+async function deleteSupplier(id, btn){
+  const s = (DB.supplier||[]).find(x => String(x.id) === String(id));
+  if(!s) return;
+  if(!confirm('Hapus supplier "' + s.nama + '"?\n\nSparepart yang memakai supplier ini akan tetap menyimpan nama supplier (tidak berubah).')) return;
+  setLoading(btn, '');
+  try {
+    const res = await apiPost('deleteSupplier', { id });
+    clearLoading(btn);
+    if(res.error) throw new Error(res.error);
+    DB.supplier = res.supplier;
+    saveDBCache();
+    renderSupplierList(); renderSupplierDropdown();
+    toast('Supplier dihapus');
   } catch(err){ clearLoading(btn); toast(err.message, 'error'); }
 }
 
@@ -1774,6 +1875,7 @@ function renderSparepartTable(){
 }
 function openSparepartModal(id){
   renderKategoriDropdown();
+  renderSupplierDropdown();
   if(id){
     const s = DB.sparepart.find(x => String(x.id) === String(id));
     if(!s) return;
@@ -1784,7 +1886,8 @@ function openSparepartModal(id){
     $('sp-pricebuy').value = s.hargaBeli||'';
     $('sp-stock').value = s.stok!==0 ? s.stok : '';
     $('sp-minstock').value = s.minStok!==0 ? s.minStok : '';
-    $('sp-supplier').value = s.supplier||'';
+    // Set supplier value AFTER dropdown rendered
+    setTimeout(()=>{ $('sp-supplier').value = s.supplier||''; }, 0);
   } else {
     $('sparepart-modal-title').textContent = 'Tambah Sparepart';
     $('sp-id').value=''; $('sp-code').value=''; $('sp-name').value='';
