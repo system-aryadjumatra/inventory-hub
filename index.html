@@ -66,33 +66,12 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
 .preset-btn{transition:all .2s;}
 .preset-btn.active{background-color:rgba(249,115,22,.15);border-color:rgba(249,115,22,.4);color:#fb923c;}
 
-/* =========================================================
-   FIX REFRESH INDICATOR
-   Pakai display (bukan opacity/visibility) → dijamin hilang
-   ========================================================= */
-#refresh-indicator{
-  display: none;
-  align-items: center;
-  gap: 6px;
-}
-#refresh-indicator.show{
-  display: flex;
-}
-#refresh-indicator .ri-icon{
-  font-size: 11px;
-  color: #f97316;
-}
-#refresh-indicator.flash-success{
-  background-color: rgba(16,185,129,.15) !important;
-  border-color: rgba(16,185,129,.4) !important;
-  color: #34d399 !important;
-}
+#refresh-indicator{ display: none; align-items: center; gap: 6px; }
+#refresh-indicator.show{ display: flex; }
+#refresh-indicator .ri-icon{ font-size: 11px; color: #f97316; }
+#refresh-indicator.flash-success{ background-color: rgba(16,185,129,.15) !important; border-color: rgba(16,185,129,.4) !important; color: #34d399 !important; }
 #refresh-indicator.flash-success .ri-icon{ color:#34d399; }
-#refresh-indicator.flash-error{
-  background-color: rgba(244,63,94,.15) !important;
-  border-color: rgba(244,63,94,.4) !important;
-  color: #fb7185 !important;
-}
+#refresh-indicator.flash-error{ background-color: rgba(244,63,94,.15) !important; border-color: rgba(244,63,94,.4) !important; color: #fb7185 !important; }
 #refresh-indicator.flash-error .ri-icon{ color:#fb7185; }
 
 @media(max-width:767px){button:not(.no-min), a.btn { min-height:36px; }input, select { min-height:38px; }}
@@ -172,11 +151,18 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <i class="fa-solid fa-chart-pie text-brandOrange"></i> <span class="truncate">Dashboard</span></h2>
     </div>
     <div class="flex items-center gap-2 flex-shrink-0">
-      <!-- REFRESH INDICATOR (default: display:none, hanya muncul saat .show) -->
       <div id="refresh-indicator" class="px-2 py-1 rounded-lg bg-brandOrange/10 border border-brandOrange/30">
         <i class="ri-icon fa-solid fa-rotate"></i>
         <span class="text-[10px] text-brandOrange font-semibold hidden sm:inline">Refresh...</span>
       </div>
+      <!-- Pending sync badge -->
+      <button id="pending-badge" onclick="syncPendingQueue(true)" class="hidden items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 text-[10px] font-bold" title="Transaksi offline menunggu sinkron">
+        <i class="fa-solid fa-cloud-arrow-up"></i><span id="pending-count">0</span>
+      </button>
+      <!-- Offline indicator -->
+      <button id="offline-indicator" class="hidden items-center gap-1 px-2 py-1 rounded-lg bg-rose-500/15 border border-rose-500/40 text-rose-400 text-[10px] font-bold" title="Mode Offline">
+        <i class="fa-solid fa-wifi"></i>
+      </button>
       <button id="bt-btn" onclick="connectBluetoothPrinter()" title="Printer Bluetooth"
         class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600/30 text-xs font-semibold transition">
         <i class="fa-solid fa-print"></i> <span id="btn-bt-text" class="hidden sm:inline">Printer</span></button>
@@ -213,6 +199,30 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         </div>
       </div>
 
+      <!-- METRICS BISNIS -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="bg-gradient-to-br from-emerald-500/10 to-darkCard p-3 sm:p-4 rounded-2xl border border-emerald-500/30">
+          <p class="text-[10px] sm:text-[11px] font-medium text-emerald-300 truncate">Pendapatan</p>
+          <h3 id="dash-pendapatan" class="text-base sm:text-xl font-bold text-white mt-1 truncate">Rp 0</h3>
+          <p class="text-[9px] text-slate-500 mt-0.5">Total penjualan</p>
+        </div>
+        <div class="bg-gradient-to-br from-blue-500/10 to-darkCard p-3 sm:p-4 rounded-2xl border border-blue-500/30">
+          <p class="text-[10px] sm:text-[11px] font-medium text-blue-300 truncate">Modal</p>
+          <h3 id="dash-modal" class="text-base sm:text-xl font-bold text-white mt-1 truncate">Rp 0</h3>
+          <p class="text-[9px] text-slate-500 mt-0.5">Harga beli terjual</p>
+        </div>
+        <div class="bg-gradient-to-br from-amber-500/10 to-darkCard p-3 sm:p-4 rounded-2xl border border-amber-500/30">
+          <p class="text-[10px] sm:text-[11px] font-medium text-amber-300 truncate">Laba Kotor</p>
+          <h3 id="dash-laba-kotor" class="text-base sm:text-xl font-bold text-white mt-1 truncate">Rp 0</h3>
+          <p id="dash-margin" class="text-[9px] text-slate-500 mt-0.5">Margin 0%</p>
+        </div>
+        <div class="bg-gradient-to-br from-rose-500/10 to-darkCard p-3 sm:p-4 rounded-2xl border border-rose-500/30">
+          <p class="text-[10px] sm:text-[11px] font-medium text-rose-300 truncate">Laba Bersih</p>
+          <h3 id="dash-laba-bersih" class="text-base sm:text-xl font-bold text-white mt-1 truncate">Rp 0</h3>
+          <p id="dash-laba-status" class="text-[9px] text-slate-500 mt-0.5">Setelah biaya servis</p>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div class="lg:col-span-2 bg-darkCard p-4 sm:p-5 rounded-2xl border border-darkBorder">
           <h4 class="text-sm font-bold text-white mb-3 flex items-center justify-between">
@@ -222,6 +232,19 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <div class="bg-darkCard p-4 sm:p-5 rounded-2xl border border-darkBorder">
           <h4 class="text-sm font-bold text-white mb-3">Motor Per Cabang</h4>
           <div class="h-48 sm:h-64 relative flex items-center justify-center"><canvas id="chart-branch"></canvas></div>
+        </div>
+      </div>
+
+      <!-- CHART PENJUALAN & KEUNTUNGAN -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div class="lg:col-span-2 bg-darkCard p-4 sm:p-5 rounded-2xl border border-darkBorder">
+          <h4 class="text-sm font-bold text-white mb-3 flex items-center justify-between">
+            <span>Penjualan &amp; Keuntungan</span><span class="text-[10px] font-normal text-slate-400">7 Hari</span></h4>
+          <div class="h-48 sm:h-64 relative"><canvas id="chart-sales-profit"></canvas></div>
+        </div>
+        <div class="bg-darkCard p-4 sm:p-5 rounded-2xl border border-darkBorder">
+          <h4 class="text-sm font-bold text-white mb-3">Penjualan Per Kategori</h4>
+          <div class="h-48 sm:h-64 relative flex items-center justify-center"><canvas id="chart-category"></canvas></div>
         </div>
       </div>
 
@@ -261,8 +284,9 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <div class="table-wrap"><table class="w-full text-xs text-left text-slate-300">
           <thead class="text-[11px] text-slate-400 uppercase bg-slate-900/80 border-b border-darkBorder"><tr>
             <th class="py-3 px-4">Kode</th><th class="py-3 px-4">Nama</th><th class="py-3 px-4">Kategori</th>
-            <th class="py-3 px-4 text-right">Harga</th><th class="py-3 px-4 text-center">Stok</th>
-            <th class="py-3 px-4 text-center">Min</th><th class="py-3 px-4 text-center">Aksi</th></tr></thead>
+            <th class="py-3 px-4 text-right">Beli</th><th class="py-3 px-4 text-right">Jual</th>
+            <th class="py-3 px-4 text-center">Margin</th><th class="py-3 px-4 text-center">Stok</th>
+            <th class="py-3 px-4">Supplier</th><th class="py-3 px-4 text-center">Aksi</th></tr></thead>
           <tbody id="sparepart-table-body" class="divide-y divide-darkBorder/50"></tbody></table></div>
       </div>
     </section>
@@ -363,8 +387,12 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
       <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-darkCard p-3 sm:p-4 rounded-2xl border border-darkBorder">
         <div><h3 class="font-bold text-sm text-white">Motor Kantor</h3>
           <p class="text-[11px] text-slate-400">Motor di Pusat → <b class="text-amber-400">Tidak Aktif</b></p></div>
-        <button onclick="openMotorModal()" class="px-4 py-2 bg-brandOrange hover:bg-brandOrangeHover text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition whitespace-nowrap">
-          <i class="fa-solid fa-plus"></i> Tambah Motor</button>
+        <div class="flex gap-2">
+          <button onclick="exportMotorKantor()" class="px-3 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 text-xs font-semibold transition whitespace-nowrap">
+            <i class="fa-solid fa-file-csv mr-1"></i> Export</button>
+          <button onclick="openMotorModal()" class="px-4 py-2 bg-brandOrange hover:bg-brandOrangeHover text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition whitespace-nowrap">
+            <i class="fa-solid fa-plus"></i> Tambah Motor</button>
+        </div>
       </div>
 
       <div class="bg-darkCard p-3 rounded-2xl border border-darkBorder grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -554,9 +582,15 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
           <button type="button" onclick="openKategoriModal()" title="Kelola Kategori" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl"><i class="fa-solid fa-gear text-xs"></i></button>
         </div>
       </div>
-      <div class="grid grid-cols-3 gap-3">
-        <div><label class="block text-[11px] text-slate-400 mb-1">Harga <span class="text-rose-500">*</span></label>
+      <div><label class="block text-[11px] text-slate-400 mb-1">Supplier</label>
+        <input type="text" id="sp-supplier" placeholder="Nama supplier" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block text-[11px] text-slate-400 mb-1">Harga Beli <span class="text-rose-500">*</span></label>
+          <input type="number" id="sp-pricebuy" min="0" required placeholder="0" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+        <div><label class="block text-[11px] text-slate-400 mb-1">Harga Jual <span class="text-rose-500">*</span></label>
           <input type="number" id="sp-price" min="0" required placeholder="0" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
         <div><label class="block text-[11px] text-slate-400 mb-1">Stok <span class="text-rose-500">*</span></label>
           <input type="number" id="sp-stock" min="0" required placeholder="0" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
         <div><label class="block text-[11px] text-slate-400 mb-1">Min <span class="text-rose-500">*</span></label>
@@ -963,13 +997,96 @@ async function apiPost(action, data){
 }
 
 /* ============================================================
+   OFFLINE QUEUE & SERVICE WORKER
+   ============================================================ */
+const PENDING_KEY = 'ajihub_pending_queue';
+
+function getPendingQueue(){
+  try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch(e) { return []; }
+}
+function savePendingQueue(arr){
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify(arr)); } catch(e){}
+  updatePendingBadge();
+}
+function enqueueTransaction(type, payload, receiptData){
+  const q = getPendingQueue();
+  q.push({ localId: 'LOC-' + Date.now() + '-' + Math.random().toString(36).slice(2,7), type, payload, receipt: receiptData, ts: Date.now() });
+  savePendingQueue(q);
+}
+function updatePendingBadge(){
+  const q = getPendingQueue();
+  const badge = $('pending-badge');
+  const count = $('pending-count');
+  if (!badge || !count) return;
+  if (q.length > 0) {
+    badge.classList.remove('hidden'); badge.classList.add('flex');
+    count.textContent = q.length;
+  } else {
+    badge.classList.add('hidden'); badge.classList.remove('flex');
+  }
+}
+function updateOnlineStatus(){
+  const ind = $('offline-indicator');
+  if (!ind) return;
+  if (!navigator.onLine) {
+    ind.classList.remove('hidden'); ind.classList.add('flex');
+  } else {
+    ind.classList.add('hidden'); ind.classList.remove('flex');
+  }
+}
+async function syncPendingQueue(manual){
+  if (!navigator.onLine) { if (manual) toast('Masih offline', 'error'); return; }
+  const q = getPendingQueue();
+  if (!q.length) { if (manual) toast('Tidak ada transaksi tertunda'); return; }
+
+  if (manual) toast('Menyinkronkan ' + q.length + ' transaksi...');
+  showRefreshIndicator('loading');
+  try {
+    const res = await apiPost('syncOfflineBatch', { queue: q });
+    if (res.error) throw new Error(res.error);
+    const failed = [];
+    const succeededIds = new Set();
+    (res.results || []).forEach(r => {
+      if (r.ok) succeededIds.add(r.localId); else failed.push(r);
+    });
+    const remaining = q.filter(item => !succeededIds.has(item.localId));
+    savePendingQueue(remaining);
+
+    if (res.sparepart) DB.sparepart = res.sparepart;
+    if (res.motor) DB.motor = res.motor;
+    if (res.trxKeluar) DB.trxKeluar = res.trxKeluar;
+    if (res.trxMotor) DB.trxMotor = res.trxMotor;
+    renderCurrentTab();
+
+    showRefreshIndicator('success');
+    scheduleHideIndicator(1200);
+    if (manual) toast('Sinkron selesai: ' + succeededIds.size + ' berhasil' + (failed.length ? ', ' + failed.length + ' gagal' : ''));
+  } catch(err){
+    showRefreshIndicator('error');
+    scheduleHideIndicator(1200);
+    if (manual) toast('Gagal sinkron: ' + err.message, 'error');
+  }
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+window.addEventListener('online', () => { updateOnlineStatus(); toast('Kembali online'); setTimeout(()=>syncPendingQueue(false), 800); });
+window.addEventListener('offline', () => { updateOnlineStatus(); toast('Anda offline — transaksi akan disimpan lokal', 'error'); });
+
+setInterval(() => { if (navigator.onLine && getPendingQueue().length) syncPendingQueue(false); }, 30000);
+
+/* ============================================================
    STATE
    ============================================================ */
 const PUSAT_ID = 'PUSAT';
 let DB = { sparepart:[], cabang:[], motor:[], trxKeluar:[], trxMotor:[], motorLog:[], pusat:null, template:null, kategori:[] };
 let cart = [], motorCart = [];
 let btChar = null, btDeviceName = null, btDevice = null;
-let chartMovement = null, chartBranch = null;
+let chartMovement = null, chartBranch = null, chartSalesProfit = null, chartCategory = null;
 let currentMotorSub = 'jual';
 let dashVisible = true;
 let currentTab = 'dashboard';
@@ -984,11 +1101,6 @@ const DEFAULT_TEMPLATE = {
 };
 let receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE);
 
-/* ============================================================
-   REFRESH STATE
-   - isRefreshing  : mencegah double fetch
-   - lastRefreshTime : cooldown 3 detik antar tab (biar gak spam)
-   ============================================================ */
 let lastRefreshTime = 0;
 let isRefreshing = false;
 const REFRESH_COOLDOWN_MS = 3000;
@@ -1096,9 +1208,6 @@ async function loadData(){
   }
 }
 
-/* ============================================================
-   RENDER ALL — dipanggil saat init / reset
-   ============================================================ */
 function renderAll(){
   renderDashboard();
   renderSparepartTable();
@@ -1118,9 +1227,6 @@ function renderAll(){
   updatePrinterStatusUI();
 }
 
-/* ============================================================
-   RENDER CURRENT TAB — hanya render tab aktif (untuk silentRefresh)
-   ============================================================ */
 function renderCurrentTab(){
   const active = document.querySelector('.tab-content:not(.hidden)');
   if (!active) return;
@@ -1139,10 +1245,6 @@ function renderCurrentTab(){
   renderDashboardMetrics();
 }
 
-/* ============================================================
-   REFRESH INDICATOR
-   Pakai display:flex / display:none supaya dijamin hilang
-   ============================================================ */
 let _hideTimer = null;
 let _hardTimer = null;
 
@@ -1196,9 +1298,6 @@ function scheduleHideIndicator(delayMs){
   _hideTimer = setTimeout(hideRefreshIndicator, delayMs);
 }
 
-/* ============================================================
-   SILENT REFRESH — HANYA dipanggil saat pindah tab
-   ============================================================ */
 async function silentRefresh(force){
   if (isRefreshing) return;
   if (!force && Date.now() - lastRefreshTime < REFRESH_COOLDOWN_MS) return;
@@ -1207,7 +1306,6 @@ async function silentRefresh(force){
   showRefreshIndicator('loading');
   showTopBar();
 
-  // Hard timeout: kalau fetch >8 detik, matikan indicator
   if (_hardTimer) clearTimeout(_hardTimer);
   _hardTimer = setTimeout(() => {
     if(isRefreshing){
@@ -1420,12 +1518,9 @@ function switchTab(tab){
   if(dashVisible) setTimeout(renderCharts, 60);
   closeMobileSidebar();
 
-  // ─────────────────────────────────────────────
-  // Refresh HANYA saat tab berubah (bukan tab yang sama)
-  // ─────────────────────────────────────────────
   if (lastTab !== tab) {
     lastTab = tab;
-    silentRefresh(false);   // cooldown 3 detik → anti-spam
+    silentRefresh(false);
   }
 }
 function switchMotorSub(sub){
@@ -1445,8 +1540,39 @@ function renderDashboardMetrics(){
   $('dash-total-transaksi').textContent = DB.trxKeluar.length;
   $('dash-total-cabang').textContent = DB.cabang.length;
 }
+
+function calcBusinessMetrics(){
+  let pendapatan = 0, modal = 0;
+  (DB.trxKeluar||[]).forEach(t => {
+    (t.items||[]).forEach(i => {
+      const qty = Number(i.qty)||0;
+      const hj = Number(i.harga)||0;
+      const hb = Number(i.hargaBeli)||0;
+      pendapatan += qty * hj;
+      modal += qty * hb;
+    });
+  });
+  const labaKotor = pendapatan - modal;
+  const biayaServis = (DB.motorLog||[]).filter(l => l.status==='Selesai').reduce((a,b)=> a + (Number(b.biaya)||0), 0);
+  const labaBersih = labaKotor - biayaServis;
+  const margin = pendapatan > 0 ? (labaKotor / pendapatan * 100) : 0;
+  return { pendapatan, modal, labaKotor, biayaServis, labaBersih, margin };
+}
+
 function renderDashboard(){
   renderDashboardMetrics();
+
+  const M = calcBusinessMetrics();
+  if ($('dash-pendapatan')) $('dash-pendapatan').textContent = rp(M.pendapatan);
+  if ($('dash-modal')) $('dash-modal').textContent = rp(M.modal);
+  if ($('dash-laba-kotor')) $('dash-laba-kotor').textContent = rp(M.labaKotor);
+  if ($('dash-margin')) $('dash-margin').textContent = 'Margin ' + M.margin.toFixed(1) + '%';
+  if ($('dash-laba-bersih')) $('dash-laba-bersih').textContent = rp(M.labaBersih);
+  if ($('dash-laba-status')) {
+    $('dash-laba-status').textContent = M.labaBersih >= 0 ? '✓ Laba (setelah biaya servis)' : '⚠ Rugi';
+    $('dash-laba-status').className = 'text-[9px] mt-0.5 ' + (M.labaBersih >= 0 ? 'text-emerald-400' : 'text-rose-400');
+  }
+
   const low = DB.sparepart.filter(s => Number(s.stok) <= Number(s.minStok));
   $('dash-low-stock-body').innerHTML = low.length ? low.map(s => `
     <tr class="border-b border-darkBorder/30">
@@ -1455,6 +1581,7 @@ function renderDashboard(){
       <td class="py-2 px-2 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${Number(s.stok)===0?'bg-rose-500/15 text-rose-400':'bg-amber-500/15 text-amber-400'}">${s.stok}</span></td>
       <td class="py-2 px-2 text-center"><button onclick="openTambahStok('${s.id}')" class="text-emerald-400 hover:underline text-[11px] font-semibold">+ Stok</button></td>
     </tr>`).join('') : `<tr><td colspan="4" class="py-4 text-center text-slate-500 text-[11px]">Semua stok aman</td></tr>`;
+
   const now = new Date(); const limit = new Date(); limit.setDate(limit.getDate()+60);
   const due = DB.motor.filter(m => m.pajakBerlaku && m.status !== 'Terjual')
     .map(m => ({...m, _d:new Date(m.pajakBerlaku)})).filter(m => !isNaN(m._d) && m._d <= limit).sort((a,b)=>a._d-b._d);
@@ -1468,14 +1595,17 @@ function renderDashboard(){
       <td class="py-2 px-2 text-center ${cls}">${fmtDateOnly(m.pajakBerlaku)}</td>
     </tr>`;
   }).join('') : `<tr><td colspan="4" class="py-4 text-center text-slate-500 text-[11px]">Tidak ada jatuh tempo</td></tr>`;
+
   if(dashVisible) renderCharts();
 }
+
 function renderCharts(){
   if(!dashVisible) return;
+
+  // Doughnut: Motor per cabang
   const labels = ['Pusat'].concat(DB.cabang.map(c => c.nama));
   const dataBranch = [DB.motor.filter(m => m.cabangId===PUSAT_ID && m.status!=='Terjual').length]
     .concat(DB.cabang.map(c => DB.motor.filter(m => String(m.cabangId)===String(c.id) && m.status!=='Terjual').length));
-
   if(!chartBranch){
     chartBranch = new Chart($('chart-branch'), {
       type:'doughnut',
@@ -1483,16 +1613,12 @@ function renderCharts(){
       options:{ responsive:true, maintainAspectRatio:false, cutout:'62%', animation:{duration:400},
         plugins:{ legend:{ position:'bottom', labels:{ color:'#94a3b8', font:{size:10}, boxWidth:10, padding:8 } } } }
     });
-  } else {
-    chartBranch.data.labels = labels;
-    chartBranch.data.datasets[0].data = dataBranch;
-    chartBranch.update('none');
-  }
+  } else { chartBranch.data.labels = labels; chartBranch.data.datasets[0].data = dataBranch; chartBranch.update('none'); }
 
+  // Bar: Pergerakan barang
   const last7 = [...Array(7)].map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(6-i)); return d; });
   const labelsM = last7.map(d => d.toLocaleDateString('id-ID',{day:'2-digit',month:'short'}));
   const dataM = last7.map(d => { const key = d.toISOString().substring(0,10); return DB.trxKeluar.filter(t => String(t.tanggal).substring(0,10) === key).reduce((a,b)=> a + Number(b.totalItem||0), 0); });
-
   if(!chartMovement){
     chartMovement = new Chart($('chart-movement'), {
       type:'bar',
@@ -1502,10 +1628,71 @@ function renderCharts(){
         scales:{ x:{ grid:{display:false}, ticks:{color:'#94a3b8',font:{size:10}} },
                  y:{ grid:{color:'rgba(55,65,81,0.35)'}, ticks:{color:'#94a3b8',font:{size:10}}, beginAtZero:true } } }
     });
-  } else {
-    chartMovement.data.labels = labelsM;
-    chartMovement.data.datasets[0].data = dataM;
-    chartMovement.update('none');
+  } else { chartMovement.data.labels = labelsM; chartMovement.data.datasets[0].data = dataM; chartMovement.update('none'); }
+
+  // Bar + Line: Penjualan & Keuntungan
+  const salesData = last7.map(d => {
+    const key = d.toISOString().substring(0,10);
+    return DB.trxKeluar.filter(t => String(t.tanggal).substring(0,10) === key)
+      .reduce((a,t)=> a + (t.items||[]).reduce((s,i)=> s + Number(i.harga||0)*Number(i.qty||0), 0), 0);
+  });
+  const profitData = last7.map(d => {
+    const key = d.toISOString().substring(0,10);
+    return DB.trxKeluar.filter(t => String(t.tanggal).substring(0,10) === key)
+      .reduce((a,t)=> a + (t.items||[]).reduce((s,i)=> s + (Number(i.harga||0)-Number(i.hargaBeli||0))*Number(i.qty||0), 0), 0);
+  });
+  const elSP = $('chart-sales-profit');
+  if (elSP) {
+    if(!chartSalesProfit){
+      chartSalesProfit = new Chart(elSP, {
+        type:'bar',
+        data:{ labels:labelsM, datasets:[
+          { type:'bar', label:'Penjualan', data:salesData, backgroundColor:'rgba(59,130,246,0.65)', borderRadius:6, yAxisID:'y' },
+          { type:'line', label:'Keuntungan', data:profitData, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.15)', borderWidth:3, tension:0.35, fill:true, pointBackgroundColor:'#10b981', pointRadius:4, yAxisID:'y' }
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false, animation:{duration:400},
+          plugins:{ legend:{ position:'bottom', labels:{ color:'#94a3b8', font:{size:10}, boxWidth:10, padding:8 } },
+            tooltip:{ callbacks:{ label: ctx => ctx.dataset.label + ': ' + rp(ctx.raw) } } },
+          scales:{
+            x:{ grid:{display:false}, ticks:{color:'#94a3b8',font:{size:10}} },
+            y:{ grid:{color:'rgba(55,65,81,0.35)'}, ticks:{color:'#94a3b8',font:{size:10},callback:v=>'Rp '+Number(v).toLocaleString('id-ID')}, beginAtZero:true }
+          } }
+      });
+    } else {
+      chartSalesProfit.data.labels = labelsM;
+      chartSalesProfit.data.datasets[0].data = salesData;
+      chartSalesProfit.data.datasets[1].data = profitData;
+      chartSalesProfit.update('none');
+    }
+  }
+
+  // Doughnut: Penjualan per kategori
+  const catMap = {};
+  DB.trxKeluar.forEach(t => {
+    (t.items||[]).forEach(i => {
+      const key = i.kategori || 'Lainnya';
+      catMap[key] = (catMap[key]||0) + Number(i.harga||0)*Number(i.qty||0);
+    });
+  });
+  const catLabels = Object.keys(catMap);
+  const catData = catLabels.map(k => catMap[k]);
+  const catColors = ['#f97316','#3b82f6','#10b981','#8b5cf6','#ef4444','#eab308','#06b6d4','#ec4899'];
+  const elCat = $('chart-category');
+  if (elCat) {
+    if(!chartCategory){
+      chartCategory = new Chart(elCat, {
+        type:'doughnut',
+        data:{ labels:catLabels.length?catLabels:['Belum ada'], datasets:[{ data:catData.length?catData:[1], backgroundColor:catLabels.length?catColors:['#374151'], borderWidth:0 }]},
+        options:{ responsive:true, maintainAspectRatio:false, cutout:'62%', animation:{duration:400},
+          plugins:{ legend:{ position:'bottom', labels:{ color:'#94a3b8', font:{size:10}, boxWidth:10, padding:6 } },
+            tooltip:{ callbacks:{ label: ctx => ctx.label + ': ' + rp(ctx.raw) } } } }
+      });
+    } else {
+      chartCategory.data.labels = catLabels.length?catLabels:['Belum ada'];
+      chartCategory.data.datasets[0].data = catData.length?catData:[1];
+      chartCategory.data.datasets[0].backgroundColor = catLabels.length?catColors:['#374151'];
+      chartCategory.update('none');
+    }
   }
 }
 
@@ -1517,19 +1704,23 @@ function renderSparepartTable(){
   const rows = DB.sparepart.filter(s => !q || String(s.nama).toLowerCase().includes(q) || String(s.kode).toLowerCase().includes(q));
   $('sparepart-table-body').innerHTML = rows.length ? rows.map(s => {
     const low = Number(s.stok) <= Number(s.minStok);
+    const hb = Number(s.hargaBeli)||0, hj = Number(s.hargaJual)||Number(s.harga)||0;
+    const margin = hb > 0 ? ((hj - hb) / hb * 100) : 0;
     return `<tr class="hover:bg-slate-800/30 transition">
       <td class="py-3 px-4 font-mono text-[11px] text-slate-400">${esc(s.kode)}</td>
       <td class="py-3 px-4 font-semibold text-white">${esc(s.nama)}</td>
       <td class="py-3 px-4"><span class="px-2 py-0.5 bg-slate-800 rounded-full text-[10px]">${esc(s.kategori||'-')}</span></td>
-      <td class="py-3 px-4 text-right">${rp(s.harga)}</td>
+      <td class="py-3 px-4 text-right text-slate-400">${rp(hb)}</td>
+      <td class="py-3 px-4 text-right font-bold text-white">${rp(hj)}</td>
+      <td class="py-3 px-4 text-center"><span class="text-[10px] font-bold ${margin>=30?'text-emerald-400':margin>=10?'text-amber-400':'text-rose-400'}">${margin.toFixed(1)}%</span></td>
       <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${low?'bg-rose-500/15 text-rose-400':'bg-emerald-500/15 text-emerald-400'}">${s.stok}</span></td>
-      <td class="py-3 px-4 text-center text-slate-400">${s.minStok}</td>
+      <td class="py-3 px-4 text-[10px] text-slate-400">${esc(s.supplier||'-')}</td>
       <td class="py-3 px-4 text-center whitespace-nowrap">
         <button onclick="openTambahStok('${s.id}')" title="Tambah Stok" class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition"><i class="fa-solid fa-plus text-[11px]"></i></button>
         <button onclick="openSparepartModal('${s.id}')" title="Edit" class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition ml-1"><i class="fa-solid fa-pen text-[11px]"></i></button>
         <button onclick="deleteSparepart('${s.id}', this)" title="Hapus" class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition ml-1"><i class="fa-solid fa-trash text-[11px]"></i></button>
       </td></tr>`;
-  }).join('') : `<tr><td colspan="7" class="py-8 text-center text-slate-500 text-xs">Belum ada data</td></tr>`;
+  }).join('') : `<tr><td colspan="9" class="py-8 text-center text-slate-500 text-xs">Belum ada data</td></tr>`;
 }
 function openSparepartModal(id){
   renderKategoriDropdown();
@@ -1538,12 +1729,17 @@ function openSparepartModal(id){
     if(!s) return;
     $('sparepart-modal-title').textContent = 'Edit Sparepart';
     $('sp-id').value = s.id; $('sp-code').value = s.kode; $('sp-name').value = s.nama;
-    $('sp-category').value = s.kategori||''; $('sp-price').value = s.harga||'';
-    $('sp-stock').value = s.stok!==0 ? s.stok : ''; $('sp-minstock').value = s.minStok!==0 ? s.minStok : '';
+    $('sp-category').value = s.kategori||'';
+    $('sp-price').value = s.hargaJual||s.harga||'';
+    $('sp-pricebuy').value = s.hargaBeli||'';
+    $('sp-stock').value = s.stok!==0 ? s.stok : '';
+    $('sp-minstock').value = s.minStok!==0 ? s.minStok : '';
+    $('sp-supplier').value = s.supplier||'';
   } else {
     $('sparepart-modal-title').textContent = 'Tambah Sparepart';
     $('sp-id').value=''; $('sp-code').value=''; $('sp-name').value='';
-    $('sp-category').value=''; $('sp-price').value=''; $('sp-stock').value=''; $('sp-minstock').value='';
+    $('sp-category').value=''; $('sp-price').value=''; $('sp-pricebuy').value='';
+    $('sp-stock').value=''; $('sp-minstock').value=''; $('sp-supplier').value='';
   }
   openModal('sparepart-modal');
 }
@@ -1552,8 +1748,11 @@ async function saveSparepart(e, btn){
   const data = {
     id: $('sp-id').value || '', kode: $('sp-code').value.trim(),
     nama: $('sp-name').value.trim(), kategori: $('sp-category').value.trim(),
-    harga: Number($('sp-price').value)||0, stok: Number($('sp-stock').value)||0,
-    minStok: Number($('sp-minstock').value)||0
+    hargaBeli: Number($('sp-pricebuy').value)||0,
+    hargaJual: Number($('sp-price').value)||0,
+    stok: Number($('sp-stock').value)||0,
+    minStok: Number($('sp-minstock').value)||0,
+    supplier: $('sp-supplier').value.trim()
   };
   setLoading(btn, 'Menyimpan...');
   try {
@@ -1628,6 +1827,7 @@ function renderPosCatalog(){
   const items = DB.sparepart.filter(s => !q || String(s.nama).toLowerCase().includes(q) || String(s.kode).toLowerCase().includes(q));
   $('pos-catalog-grid').innerHTML = items.length ? items.map(s => {
     const out = Number(s.stok) <= 0;
+    const hj = Number(s.hargaJual)||Number(s.harga)||0;
     return `<button ${out?'disabled':''} onclick="addToCart('${s.id}')"
       class="text-left bg-darkCard border border-darkBorder rounded-2xl p-3 transition ${out?'opacity-40 cursor-not-allowed':'hover:border-brandOrange hover:bg-slate-800/50'}">
       <div class="flex items-start justify-between gap-2">
@@ -1635,7 +1835,7 @@ function renderPosCatalog(){
         <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400">${esc(s.kode)}</span></div>
       <p class="text-[11px] font-semibold text-white mt-2 leading-snug line-clamp-2">${esc(s.nama)}</p>
       <div class="flex items-center justify-between mt-2">
-        <span class="text-[11px] font-bold text-brandOrange">${rp(s.harga)}</span>
+        <span class="text-[11px] font-bold text-brandOrange">${rp(hj)}</span>
         <span class="text-[10px] ${Number(s.stok)<=Number(s.minStok)?'text-rose-400':'text-slate-400'}">Stok ${s.stok}</span>
       </div></button>`;
   }).join('') : `<p class="col-span-full text-center text-slate-500 text-xs py-10">Tidak ada sparepart</p>`;
@@ -1643,9 +1843,14 @@ function renderPosCatalog(){
 function addToCart(id){
   const s = DB.sparepart.find(x => String(x.id) === String(id));
   if(!s) return;
+  const hj = Number(s.hargaJual)||Number(s.harga)||0;
+  const hb = Number(s.hargaBeli)||0;
   const ex = cart.find(c => String(c.id) === String(id));
   if(ex){ if(ex.qty + 1 > Number(s.stok)) return toast('Stok tidak mencukupi', 'error'); ex.qty++; }
-  else { if(Number(s.stok) < 1) return toast('Stok habis', 'error'); cart.push({ id:s.id, kode:s.kode, nama:s.nama, harga:Number(s.harga), qty:1 }); }
+  else {
+    if(Number(s.stok) < 1) return toast('Stok habis', 'error');
+    cart.push({ id:s.id, kode:s.kode, nama:s.nama, harga:hj, hargaBeli:hb, kategori:s.kategori||'', qty:1 });
+  }
   renderCart();
 }
 function changeQty(id, delta){
@@ -1684,25 +1889,49 @@ async function processPosCheckout(btn){
   if(!cart.length) return toast('Keranjang kosong', 'error');
   const cabangId = $('pos-target-branch').value;
   if(!cabangId) return toast('Pilih cabang dituju', 'error');
+
   const payload = {
     cabangId, cabangNama: cabangName(cabangId), catatan: $('pos-notes').value.trim(),
     totalItem: cart.reduce((a,b)=>a+b.qty,0), totalNilai: cart.reduce((a,b)=>a+b.qty*b.harga,0),
-    items: cart.map(c => ({ id:c.id, kode:c.kode, nama:c.nama, harga:c.harga, qty:c.qty })),
+    items: cart.map(c => ({ id:c.id, kode:c.kode, nama:c.nama, harga:c.harga, hargaBeli:c.hargaBeli, kategori:c.kategori, qty:c.qty })),
     user: 'Admin Pusat'
   };
+
   setLoading(btn, 'Memproses...');
   showTopBar();
+
   try {
+    if (!navigator.onLine) throw new Error('OFFLINE');
     const res = await apiPost('checkoutKeluar', payload);
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
     DB.sparepart = res.sparepart; DB.trxKeluar = res.trxKeluar;
     cart = []; $('pos-notes').value = '';
-    renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart(); renderDashboardMetrics();
+    renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart(); renderDashboard(); renderBranchOptions();
     lastRefreshTime = Date.now();
     toast('Berhasil');
     printReceiptKeluar(res.trx);
-  } catch(err){ clearLoading(btn); toast(err.message, 'error'); }
+  } catch(err){
+    clearLoading(btn);
+    const isOffline = err.message === 'OFFLINE' || !navigator.onLine ||
+                      /failed to fetch|network|load failed/i.test(err.message);
+    if (isOffline) {
+      const offlineId = 'OFF-' + Date.now().toString(36).toUpperCase();
+      const receiptData = Object.assign({}, payload, { id: offlineId, tanggal: new Date().toISOString(), items: cart.slice() });
+      enqueueTransaction('keluar', payload, receiptData);
+      payload.items.forEach(it => {
+        const s = DB.sparepart.find(x => String(x.id) === String(it.id));
+        if (s) s.stok = Math.max(0, Number(s.stok) - Number(it.qty));
+      });
+      DB.trxKeluar.push(Object.assign({}, receiptData, { _offline:true }));
+      cart = []; $('pos-notes').value = '';
+      renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart(); renderDashboard();
+      toast('Mode offline — transaksi disimpan & akan disinkron otomatis');
+      printReceiptKeluar(receiptData);
+    } else {
+      toast(err.message, 'error');
+    }
+  }
 }
 
 /* ============================================================
@@ -1905,8 +2134,11 @@ function exportRekapSparepart(){
   const { from, to } = getFilterRange('history');
   const data = DB.trxKeluar.filter(t => withinRange(t.tanggal, from, to));
   if(!data.length) return toast('Tidak ada data pada rentang ini', 'error');
-  const rows = [['ID','Tanggal','Cabang','Nama Barang','Qty','Harga','Subtotal','Total Item','Total Nilai','Catatan']];
-  data.forEach(t => { (t.items||[]).forEach(i => { rows.push([t.id, fmtDateTime(t.tanggal), t.cabangNama||cabangName(t.cabangId), i.nama, i.qty, i.harga, i.qty*i.harga, t.totalItem, t.totalNilai, t.catatan||'']); }); });
+  const rows = [['ID','Tanggal','Cabang','Nama Barang','Qty','Harga Beli','Harga Jual','Subtotal Jual','Laba Item','Total Item','Total Nilai','Catatan']];
+  data.forEach(t => { (t.items||[]).forEach(i => {
+    const hb = Number(i.hargaBeli)||0, hj = Number(i.harga)||0, qty = Number(i.qty)||0;
+    rows.push([t.id, fmtDateTime(t.tanggal), t.cabangNama||cabangName(t.cabangId), i.nama, qty, hb, hj, hj*qty, (hj-hb)*qty, t.totalItem, t.totalNilai, t.catatan||'']);
+  }); });
   downloadCSV(rows, `Rekap_Transaksi_Sparepart_${Date.now()}.csv`);
   toast('Diexport');
 }
@@ -1947,6 +2179,19 @@ function renderMotorTable(){
       <td class="py-3 px-4 text-center">${statusBadge(m.status)}</td>
       <td class="py-3 px-4 text-center whitespace-nowrap">${motorActions(m)}</td>
     </tr>`).join('') : `<tr><td colspan="11" class="py-8 text-center text-slate-500 text-xs">Tidak ada data</td></tr>`;
+}
+function exportMotorKantor(){
+  if(!DB.motor.length) return toast('Tidak ada data motor', 'error');
+  const rows = [['ID','Plat','Model','Tahun','No Mesin','No Rangka','Atas Nama','Pemegang','Pajak S/D','Cabang','Harga Jual','Status','Keterangan']];
+  DB.motor.forEach(m => {
+    rows.push([
+      m.id, m.plat, m.model, m.tahunMotor||'', m.noMesin||'', m.noRangka||'', m.atasNama||'',
+      m.pemegang||'', m.pajakBerlaku||'', cabangName(m.cabangId), m.hargaJual||0,
+      m.status||'', m.keterangan||''
+    ]);
+  });
+  downloadCSV(rows, `Data_Motor_Kantor_${Date.now()}.csv`);
+  toast('Export berhasil');
 }
 function openMotorModal(id){
   if(id){
@@ -2107,10 +2352,12 @@ async function processMotorCheckout(btn){
   if(!motorCart.length) return toast('Pilih motor dulu', 'error');
   const pembeli = $('motor-buyer').value.trim();
   if(!pembeli) return toast('Nama pembeli wajib diisi', 'error');
-  const payload = { items: motorCart, pembeli, metode: $('motor-metode').value, catatan: $('motor-notes').value.trim(), total: motorCart.reduce((a,b)=>a+b.harga,0) };
+  const payload = { items: motorCart, pembeli, metode: $('motor-metode').value,
+                    catatan: $('motor-notes').value.trim(), total: motorCart.reduce((a,b)=>a+b.harga,0) };
   setLoading(btn, 'Memproses...');
   showTopBar();
   try {
+    if (!navigator.onLine) throw new Error('OFFLINE');
     const res = await apiPost('checkoutMotor', payload);
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
@@ -2121,7 +2368,35 @@ async function processMotorCheckout(btn){
     lastRefreshTime = Date.now();
     toast('Berhasil — ' + count + ' unit tercetak dalam 1 nota');
     printReceiptMotor(res.trx);
-  } catch(err){ clearLoading(btn); toast(err.message,'error'); }
+  } catch(err){
+    clearLoading(btn);
+    const isOffline = err.message === 'OFFLINE' || !navigator.onLine ||
+                      /failed to fetch|network|load failed/i.test(err.message);
+    if (isOffline) {
+      const offlineId = 'OFFM-' + Date.now().toString(36).toUpperCase();
+      const receiptData = motorCart.map((m, idx) => ({
+        id: offlineId + '-' + (idx+1), tanggal: new Date().toISOString(),
+        motorId: m.id, plat: m.plat, model: m.model, tahunMotor: m.tahunMotor,
+        noMesin: m.noMesin, noRangka: m.noRangka, atasNama: m.atasNama,
+        pembeli, metode: $('motor-metode').value, hargaJual: m.harga, catatan: $('motor-notes').value.trim()
+      }));
+      const payloadWithIds = Object.assign({}, payload, {
+        items: motorCart.map((m, idx) => Object.assign({}, m, { trxId: offlineId + '-' + (idx+1) }))
+      });
+      enqueueTransaction('motor', payloadWithIds, receiptData);
+      motorCart.forEach(m => {
+        const mm = DB.motor.find(x => String(x.id) === String(m.id));
+        if (mm) { mm.status = 'Terjual'; mm.hargaJual = m.harga; }
+      });
+      receiptData.forEach(r => DB.trxMotor.push(Object.assign({}, r, { _offline:true })));
+      motorCart = []; $('motor-buyer').value=''; $('motor-notes').value='';
+      renderMotorTable(); renderMotorCatalog(); renderMotorCart(); renderMotorTrxTable(); renderDashboardMetrics(); renderBranchOptions();
+      toast('Mode offline — penjualan disimpan & akan disinkron otomatis');
+      printReceiptMotor(receiptData);
+    } else {
+      toast(err.message,'error');
+    }
+  }
 }
 function renderMotorTrxTable(){
   const { from, to } = getFilterRange('motortrx');
@@ -2683,6 +2958,9 @@ setInterval(tickClock, 1000); tickClock();
 document.addEventListener('DOMContentLoaded', () => {
   switchTab('dashboard'); switchMotorSub('jual');
   updatePaperUI(); updatePrinterStatusUI(); checkBluetoothSupport();
+  updatePendingBadge();
+  updateOnlineStatus();
+  setTimeout(() => { if (navigator.onLine && getPendingQueue().length) syncPendingQueue(false); }, 3000);
 
   setHistoryPreset('1m');
   setMotorTrxPreset('1m');
