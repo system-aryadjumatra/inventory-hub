@@ -945,6 +945,7 @@ let chartMovement = null, chartBranch = null;
 let currentMotorSub = 'jual';
 let dashVisible = true;
 let currentTab = 'dashboard';
+let lastTab = '';
 let paperSize = localStorage.getItem('paperSize') || '58';
 
 const DEFAULT_TEMPLATE = {
@@ -1110,61 +1111,102 @@ function renderCurrentTab(){
 }
 
 /* ============================================================
-   SILENT REFRESH
+   SILENT REFRESH — dengan hard timeout & auto-hide
    ============================================================ */
+let _refreshTimer = null;
+let _hardTimer = null;
+
+function showRefreshIndicator(state){
+  const ind = $('refresh-indicator');
+  if (!ind) return;
+  // Clear pending hides
+  if (_refreshTimer) { clearTimeout(_refreshTimer); _refreshTimer = null; }
+
+  ind.classList.remove('flash-success','flash-error','bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
+  ind.classList.add('show');
+
+  const ico = ind.querySelector('i');
+  const txt = ind.querySelector('span');
+
+  if (state === 'success') {
+    ind.classList.add('flash-success');
+    if (ico) ico.className = 'fa-solid fa-check text-xs';
+    if (txt) txt.textContent = 'Updated';
+  } else if (state === 'error') {
+    ind.classList.add('flash-error');
+    if (ico) ico.className = 'fa-solid fa-exclamation-triangle text-xs';
+    if (txt) txt.textContent = 'Gagal';
+  } else {
+    ind.classList.add('bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
+    if (ico) ico.className = 'fa-solid fa-rotate fa-spin text-brandOrange text-xs';
+    if (txt) txt.textContent = 'Refresh...';
+  }
+}
+
+function hideRefreshIndicator(){
+  const ind = $('refresh-indicator');
+  if (!ind) return;
+  ind.classList.remove('show','flash-success','flash-error','bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
+  const ico = ind.querySelector('i');
+  const txt = ind.querySelector('span');
+  if (ico) ico.className = 'fa-solid fa-rotate fa-spin text-brandOrange text-xs';
+  if (txt) txt.textContent = 'Refresh...';
+}
+
+function scheduleHideIndicator(delayMs){
+  if (_refreshTimer) clearTimeout(_refreshTimer);
+  _refreshTimer = setTimeout(hideRefreshIndicator, delayMs);
+}
+
 async function silentRefresh(force){
   if (isRefreshing) return;
   if (!force && Date.now() - lastRefreshTime < REFRESH_COOLDOWN_MS) return;
-  isRefreshing = true;
 
-  const ind = $('refresh-indicator');
-  if (ind) {
-    ind.classList.remove('flash-success','flash-error');
-    ind.classList.add('show','bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
-    const ico = ind.querySelector('i');
-    if (ico) ico.className = 'fa-solid fa-rotate fa-spin text-brandOrange text-xs';
-    const txt = ind.querySelector('span');
-    if (txt) txt.textContent = 'Refresh...';
-  }
+  isRefreshing = true;
+  showRefreshIndicator('loading');
   showTopBar();
 
+  // HARD TIMEOUT: paksa stop setelah 8 detik
+  if (_hardTimer) clearTimeout(_hardTimer);
+  _hardTimer = setTimeout(() => {
+    isRefreshing = false;
+    showRefreshIndicator('error');
+    scheduleHideIndicator(1200);
+  }, 8000);
+
+  let controller = null;
+  let fetchTimer = null;
+
   try {
-    const res = await apiGet('getAll');
-    if (res.error) throw new Error(res.error);
-    DB = res;
-    receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template || {});
+    controller = new AbortController();
+    fetchTimer = setTimeout(() => controller.abort(), 10000);
+
+    const res = await fetch(
+      `${API_URL}?action=getAll&_t=${Date.now()}`,
+      { signal: controller.signal, cache: 'no-store' }
+    );
+    clearTimeout(fetchTimer);
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    DB = data;
+    receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, data.template || {});
     renderCurrentTab();
     lastRefreshTime = Date.now();
 
-    if (ind) {
-      ind.classList.remove('bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
-      ind.classList.add('flash-success');
-      const ico = ind.querySelector('i');
-      if (ico) ico.className = 'fa-solid fa-check text-xs';
-      const txt = ind.querySelector('span');
-      if (txt) txt.textContent = 'Updated';
-    }
+    clearTimeout(_hardTimer);
+    showRefreshIndicator('success');
+    scheduleHideIndicator(1200);
+
   } catch(e){
+    clearTimeout(fetchTimer);
+    clearTimeout(_hardTimer);
     console.warn('Silent refresh error:', e);
-    if (ind) {
-      ind.classList.remove('bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
-      ind.classList.add('flash-error');
-      const ico = ind.querySelector('i');
-      if (ico) ico.className = 'fa-solid fa-exclamation-triangle text-xs';
-      const txt = ind.querySelector('span');
-      if (txt) txt.textContent = 'Gagal';
-    }
+    showRefreshIndicator('error');
+    scheduleHideIndicator(1500);
   } finally {
     isRefreshing = false;
-    setTimeout(() => {
-      if (ind) {
-        ind.classList.remove('show','flash-success','flash-error');
-        const ico = ind.querySelector('i');
-        if (ico) ico.className = 'fa-solid fa-rotate fa-spin text-brandOrange text-xs';
-        const txt = ind.querySelector('span');
-        if (txt) txt.textContent = 'Refresh...';
-      }
-    }, 1500);
   }
 }
 
@@ -1342,9 +1384,13 @@ function switchTab(tab){
   $('page-title').innerHTML = `<i class="fa-solid ${icon} text-brandOrange"></i> <span class="truncate">${title}</span>`;
   dashVisible = (tab === 'dashboard');
   if(dashVisible) setTimeout(renderCharts, 60);
-  closeMobileSidebar();
-  // Silent refresh — tetap di tab yang sama
-  silentRefresh(false);
+    closeMobileSidebar();
+  // Sembunyikan indikator dulu, refresh hanya jika bukan tab yang sama
+  hideRefreshIndicator();
+  if (lastTab !== tab) {
+    lastTab = tab;
+    silentRefresh(false);
+  }
 }
 function switchMotorSub(sub){
   currentMotorSub = sub;
