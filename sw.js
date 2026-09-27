@@ -18,9 +18,8 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   const url = new URL(req.url);
 
-  // Biarkan API Google Apps Script lewat jaringan
+  // Biarkan API Google Apps Script lewat jaringan (jangan di-cache)
   if (url.hostname.includes('script.google.com') || url.hostname.includes('googleusercontent.com')) return;
-  // Skip non-GET & CDN eksternal
   if (req.method !== 'GET') return;
 
   // HTML: network-first, fallback cache
