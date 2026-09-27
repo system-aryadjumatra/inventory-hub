@@ -65,8 +65,36 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
 .date-input::-webkit-calendar-picker-indicator{filter:invert(60%) sepia(80%) saturate(2000%) hue-rotate(360deg);cursor:pointer;}
 .preset-btn{transition:all .2s;}
 .preset-btn.active{background-color:rgba(249,115,22,.15);border-color:rgba(249,115,22,.4);color:#fb923c;}
-#refresh-indicator{transition:all .3s ease;}
-#refresh-indicator.flash-success{background-color:rgba(16,185,129,.15) !important;border-color:rgba(16,185,129,.4) !important;color:#34d399 !important;}
+
+/* =========================================================
+   FIX REFRESH INDICATOR
+   Pakai display (bukan opacity/visibility) → dijamin hilang
+   ========================================================= */
+#refresh-indicator{
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+#refresh-indicator.show{
+  display: flex;
+}
+#refresh-indicator .ri-icon{
+  font-size: 11px;
+  color: #f97316;
+}
+#refresh-indicator.flash-success{
+  background-color: rgba(16,185,129,.15) !important;
+  border-color: rgba(16,185,129,.4) !important;
+  color: #34d399 !important;
+}
+#refresh-indicator.flash-success .ri-icon{ color:#34d399; }
+#refresh-indicator.flash-error{
+  background-color: rgba(244,63,94,.15) !important;
+  border-color: rgba(244,63,94,.4) !important;
+  color: #fb7185 !important;
+}
+#refresh-indicator.flash-error .ri-icon{ color:#fb7185; }
+
 @media(max-width:767px){button:not(.no-min), a.btn { min-height:36px; }input, select { min-height:38px; }}
 </style>
 </head>
@@ -144,9 +172,9 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <i class="fa-solid fa-chart-pie text-brandOrange"></i> <span class="truncate">Dashboard</span></h2>
     </div>
     <div class="flex items-center gap-2 flex-shrink-0">
-      <!-- REFRESH INDICATOR -->
-      <div id="refresh-indicator" class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-brandOrange/10 border border-brandOrange/30">
-        <i class="fa-solid fa-rotate fa-spin text-brandOrange text-xs"></i>
+      <!-- REFRESH INDICATOR (default: display:none, hanya muncul saat .show) -->
+      <div id="refresh-indicator" class="px-2 py-1 rounded-lg bg-brandOrange/10 border border-brandOrange/30">
+        <i class="ri-icon fa-solid fa-rotate"></i>
         <span class="text-[10px] text-brandOrange font-semibold hidden sm:inline">Refresh...</span>
       </div>
       <button id="bt-btn" onclick="connectBluetoothPrinter()" title="Printer Bluetooth"
@@ -957,7 +985,9 @@ const DEFAULT_TEMPLATE = {
 let receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE);
 
 /* ============================================================
-   AUTO-REFRESH STATE
+   REFRESH STATE
+   - isRefreshing  : mencegah double fetch
+   - lastRefreshTime : cooldown 3 detik antar tab (biar gak spam)
    ============================================================ */
 let lastRefreshTime = 0;
 let isRefreshing = false;
@@ -1067,7 +1097,7 @@ async function loadData(){
 }
 
 /* ============================================================
-   RENDER ALL — dipanggil hanya saat init / reset
+   RENDER ALL — dipanggil saat init / reset
    ============================================================ */
 function renderAll(){
   renderDashboard();
@@ -1106,58 +1136,69 @@ function renderCurrentTab(){
       break;
     case 'cabang': renderCabangCards(); break;
   }
-  // Metrics dashboard selalu update (light)
   renderDashboardMetrics();
 }
 
 /* ============================================================
-   SILENT REFRESH — dengan hard timeout & auto-hide
+   REFRESH INDICATOR
+   Pakai display:flex / display:none supaya dijamin hilang
    ============================================================ */
-let _refreshTimer = null;
+let _hideTimer = null;
 let _hardTimer = null;
+
+function _setIndicatorIcon(cls){
+  const ind = $('refresh-indicator');
+  if(!ind) return;
+  const ico = ind.querySelector('.ri-icon');
+  if(ico) ico.className = 'ri-icon ' + cls;
+}
+function _setIndicatorText(txt, cls){
+  const ind = $('refresh-indicator');
+  if(!ind) return;
+  const t = ind.querySelector('span');
+  if(t){ t.textContent = txt; t.className = cls; }
+}
 
 function showRefreshIndicator(state){
   const ind = $('refresh-indicator');
-  if (!ind) return;
-  // Clear pending hides
-  if (_refreshTimer) { clearTimeout(_refreshTimer); _refreshTimer = null; }
+  if(!ind) return;
+  if(_hideTimer){ clearTimeout(_hideTimer); _hideTimer = null; }
 
-  ind.classList.remove('flash-success','flash-error','bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
-  ind.classList.add('show');
-
-  const ico = ind.querySelector('i');
-  const txt = ind.querySelector('span');
+  ind.classList.remove('flash-success','flash-error');
+  ind.classList.add('show','bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
 
   if (state === 'success') {
     ind.classList.add('flash-success');
-    if (ico) ico.className = 'fa-solid fa-check text-xs';
-    if (txt) txt.textContent = 'Updated';
+    ind.classList.remove('bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
+    _setIndicatorIcon('fa-solid fa-check');
+    _setIndicatorText('Updated', 'text-[10px] font-semibold hidden sm:inline');
   } else if (state === 'error') {
     ind.classList.add('flash-error');
-    if (ico) ico.className = 'fa-solid fa-exclamation-triangle text-xs';
-    if (txt) txt.textContent = 'Gagal';
+    ind.classList.remove('bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
+    _setIndicatorIcon('fa-solid fa-triangle-exclamation');
+    _setIndicatorText('Gagal', 'text-[10px] font-semibold hidden sm:inline');
   } else {
-    ind.classList.add('bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
-    if (ico) ico.className = 'fa-solid fa-rotate fa-spin text-brandOrange text-xs';
-    if (txt) txt.textContent = 'Refresh...';
+    _setIndicatorIcon('fa-solid fa-rotate fa-spin');
+    _setIndicatorText('Refresh...', 'text-[10px] font-semibold hidden sm:inline');
   }
 }
 
 function hideRefreshIndicator(){
   const ind = $('refresh-indicator');
-  if (!ind) return;
+  if(!ind) return;
   ind.classList.remove('show','flash-success','flash-error','bg-brandOrange/10','border-brandOrange/30','text-brandOrange');
-  const ico = ind.querySelector('i');
-  const txt = ind.querySelector('span');
-  if (ico) ico.className = 'fa-solid fa-rotate fa-spin text-brandOrange text-xs';
-  if (txt) txt.textContent = 'Refresh...';
+  _setIndicatorIcon('fa-solid fa-rotate');
+  _setIndicatorText('Refresh...', 'text-[10px] text-brandOrange font-semibold hidden sm:inline');
 }
 
 function scheduleHideIndicator(delayMs){
-  if (_refreshTimer) clearTimeout(_refreshTimer);
-  _refreshTimer = setTimeout(hideRefreshIndicator, delayMs);
+  if(_hideTimer) clearTimeout(_hideTimer);
+  _hideTimer = setTimeout(hideRefreshIndicator, delayMs);
 }
 
+/* ============================================================
+   SILENT REFRESH — HANYA dipanggil saat pindah tab
+   ============================================================ */
 async function silentRefresh(force){
   if (isRefreshing) return;
   if (!force && Date.now() - lastRefreshTime < REFRESH_COOLDOWN_MS) return;
@@ -1166,28 +1207,22 @@ async function silentRefresh(force){
   showRefreshIndicator('loading');
   showTopBar();
 
-  // HARD TIMEOUT: paksa stop setelah 8 detik
+  // Hard timeout: kalau fetch >8 detik, matikan indicator
   if (_hardTimer) clearTimeout(_hardTimer);
   _hardTimer = setTimeout(() => {
-    isRefreshing = false;
-    showRefreshIndicator('error');
-    scheduleHideIndicator(1200);
+    if(isRefreshing){
+      isRefreshing = false;
+      showRefreshIndicator('error');
+      scheduleHideIndicator(1200);
+    }
   }, 8000);
 
-  let controller = null;
-  let fetchTimer = null;
-
   try {
-    controller = new AbortController();
-    fetchTimer = setTimeout(() => controller.abort(), 10000);
-
     const res = await fetch(
       `${API_URL}?action=getAll&_t=${Date.now()}`,
-      { signal: controller.signal, cache: 'no-store' }
+      { cache: 'no-store' }
     );
-    clearTimeout(fetchTimer);
     const data = await res.json();
-
     if (data.error) throw new Error(data.error);
 
     DB = data;
@@ -1198,9 +1233,7 @@ async function silentRefresh(force){
     clearTimeout(_hardTimer);
     showRefreshIndicator('success');
     scheduleHideIndicator(1200);
-
   } catch(e){
-    clearTimeout(fetchTimer);
     clearTimeout(_hardTimer);
     console.warn('Silent refresh error:', e);
     showRefreshIndicator('error');
@@ -1370,6 +1403,7 @@ async function savePusat(e, btn){
    NAVIGASI
    ============================================================ */
 const PAGE_TITLES = {'dashboard':['fa-chart-pie','Dashboard'],'sparepart':['fa-box','Master Sparepart'],'transaksi-sparepart':['fa-cart-arrow-down','Transaksi Keluar POS'],'riwayat-transaksi':['fa-receipt','Riwayat Transaksi'],'motor':['fa-motorcycle','Motor Kantor'],'transaksi-motor':['fa-wrench','Transaksi Motor'],'cabang':['fa-code-branch','Data Cabang']};
+
 function switchTab(tab){
   currentTab = tab;
   document.querySelectorAll('.tab-content').forEach(s => s.classList.add('hidden'));
@@ -1384,12 +1418,14 @@ function switchTab(tab){
   $('page-title').innerHTML = `<i class="fa-solid ${icon} text-brandOrange"></i> <span class="truncate">${title}</span>`;
   dashVisible = (tab === 'dashboard');
   if(dashVisible) setTimeout(renderCharts, 60);
-    closeMobileSidebar();
-  // Sembunyikan indikator dulu, refresh hanya jika bukan tab yang sama
-  hideRefreshIndicator();
+  closeMobileSidebar();
+
+  // ─────────────────────────────────────────────
+  // Refresh HANYA saat tab berubah (bukan tab yang sama)
+  // ─────────────────────────────────────────────
   if (lastTab !== tab) {
     lastTab = tab;
-    silentRefresh(false);
+    silentRefresh(false);   // cooldown 3 detik → anti-spam
   }
 }
 function switchMotorSub(sub){
@@ -1434,7 +1470,6 @@ function renderDashboard(){
   }).join('') : `<tr><td colspan="4" class="py-4 text-center text-slate-500 text-[11px]">Tidak ada jatuh tempo</td></tr>`;
   if(dashVisible) renderCharts();
 }
-/* FIX CHART: update, jangan destroy+recreate */
 function renderCharts(){
   if(!dashVisible) return;
   const labels = ['Pusat'].concat(DB.cabang.map(c => c.nama));
@@ -1877,7 +1912,7 @@ function exportRekapSparepart(){
 }
 
 /* ============================================================
-   MOTOR KANTOR (dengan Pemegang)
+   MOTOR KANTOR
    ============================================================ */
 function motorActions(m){
   if(m.status === 'Terjual') return `<span class="text-[10px] text-slate-500 italic"><i class="fa-solid fa-lock mr-1"></i>Terkunci</span>`;
@@ -2085,7 +2120,6 @@ async function processMotorCheckout(btn){
     renderMotorTable(); renderMotorCatalog(); renderMotorCart(); renderMotorTrxTable(); renderDashboardMetrics(); renderBranchOptions();
     lastRefreshTime = Date.now();
     toast('Berhasil — ' + count + ' unit tercetak dalam 1 nota');
-    // Cetak 1 nota untuk semua motor (res.trx bisa array)
     printReceiptMotor(res.trx);
   } catch(err){ clearLoading(btn); toast(err.message,'error'); }
 }
@@ -2544,9 +2578,6 @@ function buildReceiptKeluar(t){
   return lines.join('\n');
 }
 
-/* ============================================================
-   RECEIPT MOTOR — 1 nota untuk 1 atau lebih motor
-   ============================================================ */
 function buildReceiptMotor(data){
   const arr = Array.isArray(data) ? data : [data];
   const W = getCharsPerLine();
