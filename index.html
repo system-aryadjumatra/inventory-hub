@@ -620,7 +620,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
   </div>
 </div>
 
-<!-- MODAL KELOLA SUPPLIER (BARU) -->
+<!-- MODAL KELOLA SUPPLIER -->
 <div id="supplier-modal" class="modal-container fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
   <div class="modal-content bg-darkCard border border-darkBorder rounded-2xl w-full max-w-sm p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-center mb-4">
@@ -1417,7 +1417,7 @@ async function deleteKategori(id, btn){
 }
 
 /* ============================================================
-   SUPPLIER SPAREPART (BARU)
+   SUPPLIER SPAREPART
    ============================================================ */
 function renderSupplierDropdown(){
   const sel = $('sp-supplier');
@@ -1957,52 +1957,89 @@ function renderCart(){
   $('pos-total-items-text').textContent = totalItems + ' Pcs';
   $('pos-total-val').textContent = rp(totalVal);
 }
+
+/* ===== PATCH 1: processPosCheckout — pisahkan API call & print ===== */
 async function processPosCheckout(btn){
   if(!cart.length) return toast('Keranjang kosong', 'error');
   const cabangId = $('pos-target-branch').value;
   if(!cabangId) return toast('Pilih cabang dituju', 'error');
 
+  const cartSnapshot = cart.slice();
+  const notesVal = $('pos-notes').value.trim();
   const payload = {
-    cabangId, cabangNama: cabangName(cabangId), catatan: $('pos-notes').value.trim(),
-    totalItem: cart.reduce((a,b)=>a+b.qty,0), totalNilai: cart.reduce((a,b)=>a+b.qty*b.harga,0),
-    items: cart.map(c => ({ id:c.id, kode:c.kode, nama:c.nama, harga:c.harga, hargaBeli:c.hargaBeli, kategori:c.kategori, qty:c.qty })),
+    cabangId, cabangNama: cabangName(cabangId), catatan: notesVal,
+    totalItem: cartSnapshot.reduce((a,b)=>a+b.qty,0),
+    totalNilai: cartSnapshot.reduce((a,b)=>a+b.qty*b.harga,0),
+    items: cartSnapshot.map(c => ({ id:c.id, kode:c.kode, nama:c.nama, harga:c.harga, hargaBeli:c.hargaBeli, kategori:c.kategori, qty:c.qty })),
     user: 'Admin Pusat'
   };
 
   setLoading(btn, 'Memproses...');
   showTopBar();
 
+  let res = null, apiError = null;
   try {
     if (!navigator.onLine) throw new Error('OFFLINE');
-    const res = await apiPost('checkoutKeluar', payload);
-    clearLoading(btn);
-    if(res.error) throw new Error(res.error);
-    DB.sparepart = res.sparepart; DB.trxKeluar = res.trxKeluar;
-    cart = []; $('pos-notes').value = '';
-    renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart(); renderDashboard(); renderBranchOptions();
-    lastRefreshTime = Date.now();
-    toast('Berhasil');
-    printReceiptKeluar(res.trx);
-  } catch(err){
-    clearLoading(btn);
-    const isOffline = err.message === 'OFFLINE' || !navigator.onLine ||
-                      /failed to fetch|network|load failed/i.test(err.message);
-    if (isOffline) {
-      const offlineId = 'OFF-' + Date.now().toString(36).toUpperCase();
-      const receiptData = Object.assign({}, payload, { id: offlineId, tanggal: new Date().toISOString(), items: cart.slice() });
-      enqueueTransaction('keluar', payload, receiptData);
-      payload.items.forEach(it => {
-        const s = DB.sparepart.find(x => String(x.id) === String(it.id));
-        if (s) s.stok = Math.max(0, Number(s.stok) - Number(it.qty));
-      });
-      DB.trxKeluar.push(Object.assign({}, receiptData, { _offline:true }));
-      cart = []; $('pos-notes').value = '';
-      renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart(); renderDashboard();
-      toast('Mode offline — transaksi disimpan & akan disinkron otomatis');
-      printReceiptKeluar(receiptData);
-    } else {
-      toast(err.message, 'error');
+    res = await apiPost('checkoutKeluar', payload);
+    if (res && res.error) throw new Error(res.error);
+  } catch(err) {
+    apiError = err;
+  }
+  clearLoading(btn);
+
+  // ---- OFFLINE PATH ----
+  if (apiError) {
+    const isOffline = apiError.message === 'OFFLINE' || !navigator.onLine ||
+                      /failed to fetch|network|load failed/i.test(apiError.message);
+    if (!isOffline) {
+      toast(apiError.message, 'error');
+      return;
     }
+    const offlineId = 'OFF-' + Date.now().toString(36).toUpperCase();
+    const receiptData = Object.assign({}, payload, {
+      id: offlineId, tanggal: new Date().toISOString(), items: cartSnapshot.slice()
+    });
+    enqueueTransaction('keluar', payload, receiptData);
+    payload.items.forEach(it => {
+      const s = DB.sparepart.find(x => String(x.id) === String(it.id));
+      if (s) s.stok = Math.max(0, Number(s.stok) - Number(it.qty));
+    });
+    DB.trxKeluar.push(Object.assign({}, receiptData, { _offline:true }));
+    cart = []; $('pos-notes').value = '';
+    renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart();
+    renderDashboard(); renderBranchOptions();
+    toast('Mode offline — transaksi disimpan & akan disinkron otomatis');
+    // Print TERPISAH — kalau error, transaksi tetap aman
+    setTimeout(() => {
+      try { printReceiptKeluar(receiptData); }
+      catch(e){ console.warn('Print offline error:', e); }
+    }, 200);
+    return;
+  }
+
+  // ---- ONLINE SUCCESS ----
+  if (res.sparepart) DB.sparepart = res.sparepart;
+  if (res.trxKeluar) DB.trxKeluar = res.trxKeluar;
+  cart = []; $('pos-notes').value = '';
+  renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart();
+  renderDashboard(); renderBranchOptions();
+  lastRefreshTime = Date.now();
+  toast('Berhasil');
+
+  // Print TERPISAH
+  try {
+    if (res.trx) {
+      printReceiptKeluar(res.trx);
+    } else {
+      // fallback: cetak dari data lokal
+      printReceiptKeluar(Object.assign({}, payload, {
+        id: 'LOCAL-' + Date.now().toString(36).toUpperCase(),
+        tanggal: new Date().toISOString()
+      }));
+    }
+  } catch(e) {
+    console.warn('Print error (transaksi sudah tersimpan):', e);
+    toast('Transaksi tersimpan, tapi gagal cetak: ' + e.message, 'error');
   }
 }
 
@@ -2420,56 +2457,100 @@ function renderMotorCart(){
   $('motor-cart-count').textContent = motorCart.length + ' unit';
   $('motor-total-val').textContent = rp(motorCart.reduce((a,b)=>a+b.harga,0));
 }
+
+/* ===== PATCH 2: processMotorCheckout — pisahkan API call & print ===== */
 async function processMotorCheckout(btn){
   if(!motorCart.length) return toast('Pilih motor dulu', 'error');
   const pembeli = $('motor-buyer').value.trim();
   if(!pembeli) return toast('Nama pembeli wajib diisi', 'error');
-  const payload = { items: motorCart, pembeli, metode: $('motor-metode').value,
-                    catatan: $('motor-notes').value.trim(), total: motorCart.reduce((a,b)=>a+b.harga,0) };
+
+  const cartSnapshot = motorCart.slice();
+  const metodeVal = $('motor-metode').value;
+  const notesVal = $('motor-notes').value.trim();
+
+  const payload = {
+    items: cartSnapshot, pembeli, metode: metodeVal,
+    catatan: notesVal, total: cartSnapshot.reduce((a,b)=>a+b.harga,0)
+  };
+
   setLoading(btn, 'Memproses...');
   showTopBar();
+
+  let res = null, apiError = null;
   try {
     if (!navigator.onLine) throw new Error('OFFLINE');
-    const res = await apiPost('checkoutMotor', payload);
-    clearLoading(btn);
-    if(res.error) throw new Error(res.error);
-    DB.motor = res.motor; DB.trxMotor = res.trxMotor;
-    const count = Array.isArray(res.trx) ? res.trx.length : 1;
-    motorCart = []; $('motor-buyer').value=''; $('motor-notes').value='';
-    renderMotorTable(); renderMotorCatalog(); renderMotorCart(); renderMotorTrxTable(); renderDashboardMetrics(); renderBranchOptions();
-    lastRefreshTime = Date.now();
-    toast('Berhasil — ' + count + ' unit tercetak dalam 1 nota');
-    printReceiptMotor(res.trx);
-  } catch(err){
-    clearLoading(btn);
-    const isOffline = err.message === 'OFFLINE' || !navigator.onLine ||
-                      /failed to fetch|network|load failed/i.test(err.message);
-    if (isOffline) {
-      const offlineId = 'OFFM-' + Date.now().toString(36).toUpperCase();
-      const receiptData = motorCart.map((m, idx) => ({
-        id: offlineId + '-' + (idx+1), tanggal: new Date().toISOString(),
-        motorId: m.id, plat: m.plat, model: m.model, tahunMotor: m.tahunMotor,
-        noMesin: m.noMesin, noRangka: m.noRangka, atasNama: m.atasNama,
-        pembeli, metode: $('motor-metode').value, hargaJual: m.harga, catatan: $('motor-notes').value.trim()
-      }));
-      const payloadWithIds = Object.assign({}, payload, {
-        items: motorCart.map((m, idx) => Object.assign({}, m, { trxId: offlineId + '-' + (idx+1) }))
-      });
-      enqueueTransaction('motor', payloadWithIds, receiptData);
-      motorCart.forEach(m => {
-        const mm = DB.motor.find(x => String(x.id) === String(m.id));
-        if (mm) { mm.status = 'Terjual'; mm.hargaJual = m.harga; }
-      });
-      receiptData.forEach(r => DB.trxMotor.push(Object.assign({}, r, { _offline:true })));
-      motorCart = []; $('motor-buyer').value=''; $('motor-notes').value='';
-      renderMotorTable(); renderMotorCatalog(); renderMotorCart(); renderMotorTrxTable(); renderDashboardMetrics(); renderBranchOptions();
-      toast('Mode offline — penjualan disimpan & akan disinkron otomatis');
-      printReceiptMotor(receiptData);
-    } else {
-      toast(err.message,'error');
+    res = await apiPost('checkoutMotor', payload);
+    if (res && res.error) throw new Error(res.error);
+  } catch(err) {
+    apiError = err;
+  }
+  clearLoading(btn);
+
+  // ---- OFFLINE PATH ----
+  if (apiError) {
+    const isOffline = apiError.message === 'OFFLINE' || !navigator.onLine ||
+                      /failed to fetch|network|load failed/i.test(apiError.message);
+    if (!isOffline) {
+      toast(apiError.message, 'error');
+      return;
     }
+    const offlineId = 'OFFM-' + Date.now().toString(36).toUpperCase();
+    const receiptData = cartSnapshot.map((m, idx) => ({
+      id: offlineId + '-' + (idx+1), tanggal: new Date().toISOString(),
+      motorId: m.id, plat: m.plat, model: m.model, tahunMotor: m.tahunMotor,
+      noMesin: m.noMesin, noRangka: m.noRangka, atasNama: m.atasNama,
+      pembeli, metode: metodeVal, hargaJual: m.harga, catatan: notesVal
+    }));
+    const payloadWithIds = Object.assign({}, payload, {
+      items: cartSnapshot.map((m, idx) => Object.assign({}, m, { trxId: offlineId + '-' + (idx+1) }))
+    });
+    enqueueTransaction('motor', payloadWithIds, receiptData);
+    cartSnapshot.forEach(m => {
+      const mm = DB.motor.find(x => String(x.id) === String(m.id));
+      if (mm) { mm.status = 'Terjual'; mm.hargaJual = m.harga; }
+    });
+    receiptData.forEach(r => DB.trxMotor.push(Object.assign({}, r, { _offline:true })));
+    motorCart = []; $('motor-buyer').value=''; $('motor-notes').value='';
+    renderMotorTable(); renderMotorCatalog(); renderMotorCart();
+    renderMotorTrxTable(); renderDashboardMetrics(); renderBranchOptions();
+    toast('Mode offline — penjualan disimpan & akan disinkron otomatis');
+    setTimeout(() => {
+      try { printReceiptMotor(receiptData); }
+      catch(e){ console.warn('Print offline motor error:', e); }
+    }, 200);
+    return;
+  }
+
+  // ---- ONLINE SUCCESS ----
+  if (res.motor) DB.motor = res.motor;
+  if (res.trxMotor) DB.trxMotor = res.trxMotor;
+  const count = Array.isArray(res.trx) ? res.trx.length : 1;
+  motorCart = []; $('motor-buyer').value=''; $('motor-notes').value='';
+  renderMotorTable(); renderMotorCatalog(); renderMotorCart();
+  renderMotorTrxTable(); renderDashboardMetrics(); renderBranchOptions();
+  lastRefreshTime = Date.now();
+  toast('Berhasil — ' + count + ' unit tercetak dalam 1 nota');
+
+  // Print TERPISAH
+  try {
+    if (res.trx) {
+      printReceiptMotor(res.trx);
+    } else {
+      // fallback: cetak dari data lokal
+      const fallbackTrx = cartSnapshot.map((m, idx) => ({
+        id: 'LOCAL-' + (idx+1), tanggal: new Date().toISOString(),
+        plat: m.plat, model: m.model, tahunMotor: m.tahunMotor,
+        noMesin: m.noMesin, noRangka: m.noRangka, atasNama: m.atasNama,
+        pembeli, metode: metodeVal, hargaJual: m.harga, catatan: notesVal
+      }));
+      printReceiptMotor(fallbackTrx);
+    }
+  } catch(e) {
+    console.warn('Print motor error (transaksi sudah tersimpan):', e);
+    toast('Transaksi tersimpan, tapi gagal cetak: ' + e.message, 'error');
   }
 }
+
 function renderMotorTrxTable(){
   const { from, to } = getFilterRange('motortrx');
   const rows = (DB.trxMotor||[]).filter(t => withinRange(t.tanggal, from, to)).slice().reverse();
@@ -2897,22 +2978,33 @@ function padRight(str, len){ str = String(str); return str.length >= len ? str.s
 function twoCol(left, right, width){ left = String(left||''); right = String(right||''); const space = width - right.length; if(left.length >= space) return padRight(left.substring(0, space-1), space-1) + ' ' + right; return padRight(left, space) + right; }
 function center(text, width){ text = String(text||''); if(text.length >= width) return text.substring(0, width); const pad = Math.floor((width - text.length) / 2); return ' '.repeat(pad) + text; }
 
+/* ===== PATCH 3: buildReceiptKeluar — defensive ===== */
 function buildReceiptKeluar(t){
-  const W = getCharsPerLine(); const L = getLine(); const items = t.items || []; const lines = [];
-  const T = receiptTemplate;
+  if (!t || typeof t !== 'object') return '';
+  const items = Array.isArray(t.items) ? t.items.filter(Boolean) : [];
+  const W = getCharsPerLine();
+  const L = getLine();
+  const lines = [];
+  const T = receiptTemplate || {};
   if(T.store) lines.push(center(T.store, W));
   if(T.address) lines.push(center(T.address, W));
   if(T.address2) lines.push(center(T.address2, W));
   if(T.phone) lines.push(center(T.phone, W));
   lines.push(L);
-  lines.push('No  : ' + t.id);
+  lines.push('No  : ' + (t.id || '-'));
   lines.push('Tgl : ' + fmtDateTime(t.tanggal));
-  lines.push('Ke  : ' + (t.cabangNama || cabangName(t.cabangId)));
+  lines.push('Ke  : ' + (t.cabangNama || cabangName(t.cabangId) || '-'));
   lines.push('Oleh: ' + (t.user || 'Admin'));
   lines.push(L);
-  items.forEach(i=>{ wrapText(i.nama, W).forEach(l => lines.push(l)); lines.push(twoCol(`  ${i.qty} x ${rp(i.harga)}`, rp(i.harga * i.qty), W)); });
+  items.forEach(i => {
+    if (!i) return;
+    wrapText(i.nama || '-', W).forEach(l => lines.push(l));
+    const harga = Number(i.harga) || 0;
+    const qty = Number(i.qty) || 0;
+    lines.push(twoCol(`  ${qty} x ${rp(harga)}`, rp(harga * qty), W));
+  });
   lines.push(L);
-  lines.push(twoCol('TOTAL ITEM', t.totalItem + ' Pcs', W));
+  lines.push(twoCol('TOTAL ITEM', (t.totalItem || 0) + ' Pcs', W));
   lines.push(twoCol('TOTAL NILAI', rp(t.totalNilai), W));
   if(t.catatan){ lines.push(L); wrapText('Catatan: ' + t.catatan, W).forEach(l => lines.push(l)); }
   lines.push(L);
@@ -2925,11 +3017,16 @@ function buildReceiptKeluar(t){
   return lines.join('\n');
 }
 
+/* ===== PATCH 4: buildReceiptMotor — defensive (FIX UTAMA) ===== */
 function buildReceiptMotor(data){
-  const arr = Array.isArray(data) ? data : [data];
+  if (!data) return '';
+  const rawArr = Array.isArray(data) ? data : [data];
+  const arr = rawArr.filter(x => x && typeof x === 'object');
+  if (!arr.length) return '';
+
   const W = getCharsPerLine();
   const L = getLine();
-  const T = receiptTemplate;
+  const T = receiptTemplate || {};
   const lines = [];
 
   if(T.store) lines.push(center(T.store, W));
@@ -2945,13 +3042,15 @@ function buildReceiptMotor(data){
 
   let grandTotal = 0;
   arr.forEach((t, idx) => {
+    if (!t) return;
     lines.push('[' + (idx + 1) + '] ' + (t.plat || '-') + ' - ' + (t.model || '-'));
     if (t.tahunMotor) lines.push('    Tahun : ' + t.tahunMotor);
-    if (t.noMesin)   lines.push('    Mesin : ' + t.noMesin);
-    if (t.noRangka)  lines.push('    Rangka: ' + t.noRangka);
-    if (t.atasNama)  lines.push('    STNK  : ' + t.atasNama);
-    lines.push(twoCol('    Harga', rp(t.hargaJual), W));
-    grandTotal += Number(t.hargaJual) || 0;
+    if (t.noMesin)    lines.push('    Mesin : ' + t.noMesin);
+    if (t.noRangka)   lines.push('    Rangka: ' + t.noRangka);
+    if (t.atasNama)   lines.push('    STNK  : ' + t.atasNama);
+    const hrg = Number(t.hargaJual) || 0;
+    lines.push(twoCol('    Harga', rp(hrg), W));
+    grandTotal += hrg;
     if (idx < arr.length - 1) lines.push(L);
   });
   lines.push(L);
@@ -2973,25 +3072,68 @@ function buildReceiptMotor(data){
 }
 
 function receiptToHtml(text){ return '<div class="rp-line">' + esc(text).replace(/\n/g,'<br>').replace(/ /g,'&nbsp;') + '</div>'; }
-function printReceiptKeluar(t){ printThermal(buildReceiptKeluar(t), 'keluar'); }
-function printReceiptKeluarById(id){ const t = DB.trxKeluar.find(x => String(x.id) === String(id)); if(t) printReceiptKeluar(t); }
-function printReceiptMotor(data){ printThermal(buildReceiptMotor(data), 'motor'); }
-function printReceiptMotorById(id){
-  const t = DB.trxMotor.find(x => String(x.id) === String(id));
-  if(t) printReceiptMotor(t);
-}
 
-function printThermal(text, type){
-  const el = $('printable-receipt'); el.setAttribute('data-paper', paperSize); el.innerHTML = receiptToHtml(text);
-  if(btChar){
-    sendEscPos(text).then(()=>toast('Struk dikirim ke printer')).catch(err=>{
-      toast('Gagal kirim, buka print dialog', 'error'); setTimeout(()=>window.print(), 400);
-    });
-  } else {
-    if(!confirm('Printer Bluetooth belum terhubung.\n\nGunakan print dialog sistem?')) return;
-    window.print();
+/* ===== PATCH 5: printReceiptKeluar & byId — defensive ===== */
+function printReceiptKeluar(t){
+  try {
+    const text = buildReceiptKeluar(t);
+    if (!text) { toast('Data struk kosong', 'error'); return; }
+    printThermal(text, 'keluar');
+  } catch(e) {
+    console.error('printReceiptKeluar error:', e);
+    toast('Gagal cetak: ' + e.message, 'error');
   }
 }
+function printReceiptKeluarById(id){
+  const t = DB.trxKeluar.find(x => String(x.id) === String(id));
+  if (!t) { toast('Transaksi tidak ditemukan', 'error'); return; }
+  printReceiptKeluar(t);
+}
+
+/* ===== PATCH 6: printReceiptMotor & byId — defensive ===== */
+function printReceiptMotor(data){
+  try {
+    const text = buildReceiptMotor(data);
+    if (!text) { toast('Data struk motor kosong / tidak valid', 'error'); return; }
+    printThermal(text, 'motor');
+  } catch(e) {
+    console.error('printReceiptMotor error:', e);
+    toast('Gagal cetak motor: ' + e.message, 'error');
+  }
+}
+function printReceiptMotorById(id){
+  const t = DB.trxMotor.find(x => String(x.id) === String(id));
+  if (!t) { toast('Transaksi motor tidak ditemukan', 'error'); return; }
+  printReceiptMotor(t);
+}
+
+/* ===== PATCH 7: printThermal — defensive ===== */
+function printThermal(text, type){
+  try {
+    if (!text) { toast('Tidak ada teks untuk dicetak', 'error'); return; }
+    const el = $('printable-receipt');
+    if (!el) { toast('Elemen cetak tidak ditemukan', 'error'); return; }
+    el.setAttribute('data-paper', paperSize);
+    el.innerHTML = receiptToHtml(text);
+
+    if (btChar) {
+      sendEscPos(text)
+        .then(() => toast('Struk dikirim ke printer'))
+        .catch(err => {
+          console.warn('BT print failed:', err);
+          toast('Gagal kirim ke printer — buka dialog cetak', 'error');
+          setTimeout(() => { try { window.print(); } catch(e) {} }, 400);
+        });
+    } else {
+      if (!confirm('Printer Bluetooth belum terhubung.\n\nGunakan print dialog sistem?')) return;
+      window.print();
+    }
+  } catch(e) {
+    console.error('printThermal error:', e);
+    toast('Gagal cetak: ' + e.message, 'error');
+  }
+}
+
 function testPrint(){
   if(!btChar) return toast('Hubungkan printer terlebih dahulu', 'error');
   const W = getCharsPerLine(); const L = getLine();
