@@ -1028,7 +1028,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
       </div>
       <div class="bg-slate-900 rounded-xl p-3 space-y-2">
         <h4 class="text-xs font-bold text-white flex items-center gap-2"><i class="fa-solid fa-pen-signature text-brandOrange text-[10px]"></i> Tanda Tangan</h4>
-        <div><label class="block text-[10px] text-slate-400 mb-0.5">Baris Penerima</label>
+        <div><label class="block text-[10px] text-slate-400 mb-0.5">Baris Footer Penerima (opsional, kosongkan saja)</label>
           <input type="text" id="tpl-receiver" oninput="updateTemplatePreview()" class="w-full bg-slate-800 border border-darkBorder rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
         <div><label class="block text-[10px] text-slate-400 mb-0.5">Baris Tanda Tangan</label>
           <input type="text" id="tpl-signature" oninput="updateTemplatePreview()" class="w-full bg-slate-800 border border-darkBorder rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
@@ -1191,7 +1191,7 @@ const DEFAULT_TEMPLATE = {
   store: 'AJ INVENTORY HUB', address: 'Kantor Pusat Utama',
   address2: 'Jl. Raya Industri No. 1', phone: 'Telp: 021-1234567',
   footer1: 'Terima kasih', footer2: 'Barang sudah diterima', footer3: 'dengan kondisi baik',
-  receiver: 'Penerima: ____________', signature: 'Tanda Tangan: _______'
+  receiver: '', signature: 'Tanda Tangan: _______'
 };
 let receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE);
 
@@ -1787,10 +1787,11 @@ function updateTemplatePreview(){
   if(T.address2) lines.push(center(T.address2, W));
   if(T.phone) lines.push(center(T.phone, W));
   lines.push(L);
-  lines.push('No  : TRX-XXXXXX');
-  lines.push('Tgl : ' + fmtDateTime(new Date().toISOString()));
-  lines.push('Ke  : Cabang Contoh');
-  lines.push('Oleh: Admin');
+  lines.push('No      : TRX-XXXXXX');
+  lines.push('Tgl     : ' + fmtDateTime(new Date().toISOString()));
+  lines.push('Ke      : Cabang Contoh');
+  lines.push('Penerima: Nama Penerima');
+  lines.push('Oleh    : Admin');
   lines.push(L);
   lines.push(twoCol('  Contoh Barang × 2', rp(100000), W));
   lines.push(L);
@@ -3276,11 +3277,11 @@ function buildReceiptKeluar(t){
   if(T.address2) lines.push(center(T.address2, W));
   if(T.phone) lines.push(center(T.phone, W));
   lines.push(L);
-  lines.push('No  : ' + (t.id || '-'));
-  lines.push('Tgl : ' + fmtDateTime(t.tanggal));
-  lines.push('Ke  : ' + (t.cabangNama || cabangName(t.cabangId) || '-'));
-  if (t.penerima) lines.push('Penerima: ' + t.penerima);
-  lines.push('Oleh: ' + (t.user || 'Admin'));
+  lines.push('No      : ' + (t.id || '-'));
+  lines.push('Tgl     : ' + fmtDateTime(t.tanggal));
+  lines.push('Ke      : ' + (t.cabangNama || cabangName(t.cabangId) || '-'));
+  lines.push('Penerima: ' + (t.penerima || '-'));
+  lines.push('Oleh    : ' + (t.user || 'Admin'));
   lines.push(L);
   items.forEach(i => {
     if (!i) return;
