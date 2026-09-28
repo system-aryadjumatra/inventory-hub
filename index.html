@@ -65,7 +65,6 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
 .date-input::-webkit-calendar-picker-indicator{filter:invert(60%) sepia(80%) saturate(2000%) hue-rotate(360deg);cursor:pointer;}
 .preset-btn{transition:all .2s;}
 .preset-btn.active{background-color:rgba(249,115,22,.15);border-color:rgba(249,115,22,.4);color:#fb923c;}
-
 #refresh-indicator{ display: none; align-items: center; gap: 6px; }
 #refresh-indicator.show{ display: flex; }
 #refresh-indicator .ri-icon{ font-size: 11px; color: #f97316; }
@@ -73,7 +72,6 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
 #refresh-indicator.flash-success .ri-icon{ color:#34d399; }
 #refresh-indicator.flash-error{ background-color: rgba(244,63,94,.15) !important; border-color: rgba(244,63,94,.4) !important; color: #fb7185 !important; }
 #refresh-indicator.flash-error .ri-icon{ color:#fb7185; }
-
 @media(max-width:767px){button:not(.no-min), a.btn { min-height:36px; }input, select { min-height:38px; }}
 </style>
 </head>
@@ -126,6 +124,8 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
     <div class="text-[10px] uppercase tracking-wider text-slate-500 px-3 pt-4 pb-1 font-semibold">Pengaturan</div>
     <button onclick="switchTab('cabang')" data-tab="cabang" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/60">
       <i class="fa-solid fa-code-branch text-sm w-5 text-center"></i> Data Cabang</button>
+    <button onclick="switchTab('karyawan')" data-tab="karyawan" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/60">
+      <i class="fa-solid fa-users text-sm w-5 text-center"></i> Data Karyawan</button>
     <button onclick="openPusatModal()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/60">
       <i class="fa-solid fa-building-columns text-sm w-5 text-center"></i> Data Pusat</button>
     <button onclick="openPrinterSettings()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/60">
@@ -309,6 +309,8 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
             <div class="flex justify-between text-base font-bold text-white"><span>TOTAL</span><span id="pos-total-val" class="text-brandOrange">Rp 0</span></div>
             <div><label class="block text-[11px] text-slate-400 mb-1 font-semibold">Cabang Tujuan <span class="text-rose-500">*</span></label>
               <select id="pos-target-branch" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></select></div>
+            <div><label class="block text-[11px] text-slate-400 mb-1 font-semibold">Penerima</label>
+              <select id="pos-penerima" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></select></div>
             <div><label class="block text-[11px] text-slate-400 mb-1 font-semibold">Catatan</label>
               <input type="text" id="pos-notes" placeholder="Opsional" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
             <button onclick="processPosCheckout(this)" class="w-full py-3 bg-brandOrange hover:bg-brandOrangeHover text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-brandOrange/20 transition">
@@ -548,6 +550,28 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="cabang-cards-container"></div>
     </section>
 
+    <section id="tab-karyawan" class="tab-content hidden space-y-4">
+      <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-darkCard p-3 sm:p-4 rounded-2xl border border-darkBorder">
+        <div><h3 class="font-bold text-sm text-white">Data Karyawan</h3>
+          <p class="text-[11px] text-slate-400">Daftar karyawan per cabang</p></div>
+        <button onclick="openKaryawanModal()" class="px-4 py-2 bg-brandOrange hover:bg-brandOrangeHover text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition whitespace-nowrap">
+          <i class="fa-solid fa-plus"></i> Tambah</button>
+      </div>
+      <div class="bg-darkCard p-3 rounded-2xl border border-darkBorder grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <select id="karyawan-filter-cabang" onchange="renderKaryawanTable()" class="bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white"></select>
+        <input type="text" id="karyawan-search" data-debounce="renderKaryawanTable" placeholder="Cari nama / jabatan..."
+          class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange">
+      </div>
+      <div class="bg-darkCard rounded-2xl border border-darkBorder overflow-hidden">
+        <div class="table-wrap"><table class="w-full text-xs text-left text-slate-300">
+          <thead class="text-[11px] text-slate-400 uppercase bg-slate-900/80 border-b border-darkBorder"><tr>
+            <th class="py-3 px-4">Nama</th><th class="py-3 px-4">Jabatan</th>
+            <th class="py-3 px-4">Cabang</th><th class="py-3 px-4">Telepon</th>
+            <th class="py-3 px-4 text-center">Status</th><th class="py-3 px-4 text-center">Aksi</th></tr></thead>
+          <tbody id="karyawan-table-body" class="divide-y divide-darkBorder/50"></tbody></table></div>
+      </div>
+    </section>
+
   </div>
 </main>
 
@@ -635,6 +659,30 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
   </div>
 </div>
 
+<!-- MODAL KARYAWAN -->
+<div id="karyawan-modal" class="modal-container fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div class="modal-content bg-darkCard border border-darkBorder rounded-2xl w-full max-w-md p-6 shadow-2xl">
+    <div class="flex justify-between items-center mb-4">
+      <h3 id="karyawan-modal-title" class="font-bold text-sm text-white">Tambah Karyawan</h3>
+      <button onclick="closeModal('karyawan-modal')" class="text-slate-400 hover:text-white w-8 h-8 rounded-lg hover:bg-slate-800"><i class="fa-solid fa-xmark text-lg"></i></button></div>
+    <form onsubmit="saveKaryawan(event, this.querySelector('button[type=submit]'))" class="space-y-3">
+      <input type="hidden" id="ky-id">
+      <div><label class="block text-[11px] text-slate-400 mb-1">Nama <span class="text-rose-500">*</span></label>
+        <input type="text" id="ky-nama" required class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+      <div><label class="block text-[11px] text-slate-400 mb-1">Jabatan <span class="text-rose-500">*</span></label>
+        <input type="text" id="ky-jabatan" required placeholder="Contoh: Staff, Driver, Admin" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+      <div><label class="block text-[11px] text-slate-400 mb-1">Cabang <span class="text-rose-500">*</span></label>
+        <select id="ky-cabang" required class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white"></select></div>
+      <div><label class="block text-[11px] text-slate-400 mb-1">Telepon</label>
+        <input type="text" id="ky-telepon" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white"></div>
+      <div class="flex gap-2 pt-2">
+        <button type="button" onclick="closeModal('karyawan-modal')" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">Batal</button>
+        <button type="submit" class="flex-1 py-2.5 bg-brandOrange hover:bg-brandOrangeHover text-white text-xs font-bold rounded-xl">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="tambahstok-modal" class="modal-container fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
   <div class="modal-content bg-darkCard border border-darkBorder rounded-2xl w-full max-w-sm p-6 shadow-2xl">
     <div class="flex justify-between items-center mb-4">
@@ -717,7 +765,8 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <div><label class="block text-[11px] text-slate-400 mb-1">Atas Nama</label>
           <input type="text" id="mt-stnk" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white"></div>
         <div><label class="block text-[11px] text-slate-400 mb-1">Pemegang</label>
-          <input type="text" id="mt-pemegang" placeholder="Nama pemegang motor" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
+          <input type="text" id="mt-pemegang" list="karyawan-list" placeholder="Ketik / pilih nama karyawan" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange">
+          <datalist id="karyawan-list"></datalist></div>
         <div><label class="block text-[11px] text-slate-400 mb-1">Pajak S/D</label>
           <input type="date" id="mt-pajak" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white"></div>
         <div><label class="block text-[11px] text-slate-400 mb-1">Cabang <span class="text-rose-500">*</span></label>
@@ -828,6 +877,8 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
       <p id="et-info" class="text-[11px] text-slate-400 bg-slate-900 rounded-xl px-3 py-2"></p>
       <div><label class="block text-[11px] text-slate-400 mb-1">Cabang Dituju</label>
         <select id="et-cabang" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white"></select></div>
+      <div><label class="block text-[11px] text-slate-400 mb-1">Penerima</label>
+        <select id="et-penerima" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white"></select></div>
       <div><label class="block text-[11px] text-slate-400 mb-1">Catatan</label>
         <input type="text" id="et-catatan" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white"></div>
       <div class="flex gap-2 pt-2">
@@ -1099,7 +1150,7 @@ setInterval(() => { if (navigator.onLine && getPendingQueue().length) syncPendin
    STATE
    ============================================================ */
 const PUSAT_ID = 'PUSAT';
-let DB = { sparepart:[], cabang:[], motor:[], trxKeluar:[], trxMotor:[], motorLog:[], pusat:null, template:null, kategori:[], supplier:[] };
+let DB = { sparepart:[], cabang:[], motor:[], trxKeluar:[], trxMotor:[], motorLog:[], pusat:null, template:null, kategori:[], supplier:[], karyawan:[] };
 let cart = [], motorCart = [];
 let btChar = null, btDeviceName = null, btDevice = null;
 let chartMovement = null, chartBranch = null, chartSalesProfit = null, chartCategory = null;
@@ -1202,6 +1253,7 @@ function applyResponse(res){
   if(res.template){ receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template); }
   if(res.kategori){ DB.kategori = res.kategori; }
   if(res.supplier){ DB.supplier = res.supplier; }
+  if(res.karyawan){ DB.karyawan = res.karyawan; }
   if(res.sparepart){ DB.sparepart = res.sparepart; }
   if(res.cabang){ DB.cabang = res.cabang; }
   if(res.motor){ DB.motor = res.motor; }
@@ -1217,6 +1269,7 @@ async function loadData(){
     if(res.error) throw new Error(res.error);
     DB = res;
     if(!DB.supplier) DB.supplier = [];
+    if(!DB.karyawan) DB.karyawan = [];
     receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, res.template || {});
     renderAll(); hideLoader(); checkBluetoothSupport();
     lastRefreshTime = Date.now();
@@ -1243,6 +1296,8 @@ function renderAll(){
   renderKategoriList();
   renderSupplierDropdown();
   renderSupplierList();
+  renderKaryawanDropdown();
+  renderKaryawanTable();
   updatePaperUI();
   updatePrinterStatusUI();
 }
@@ -1254,13 +1309,14 @@ function renderCurrentTab(){
   switch(id){
     case 'dashboard': renderDashboard(); break;
     case 'sparepart': renderSparepartTable(); renderKategoriDropdown(); renderSupplierDropdown(); break;
-    case 'transaksi-sparepart': renderPosCatalog(); renderCart(); renderBranchOptions(); break;
+    case 'transaksi-sparepart': renderPosCatalog(); renderCart(); renderBranchOptions(); renderKaryawanDropdown(); break;
     case 'riwayat-transaksi': renderHistoryTable(); break;
     case 'motor': renderMotorTable(); break;
     case 'transaksi-motor':
       renderMotorCatalog(); renderMotorCart(); renderMotorTrxTable(); renderMotorLogTable();
       break;
     case 'cabang': renderCabangCards(); break;
+    case 'karyawan': renderKaryawanTable(); renderKaryawanDropdown(); break;
   }
   renderDashboardMetrics();
 }
@@ -1345,6 +1401,7 @@ async function silentRefresh(force){
 
     DB = data;
     if(!DB.supplier) DB.supplier = [];
+    if(!DB.karyawan) DB.karyawan = [];
     receiptTemplate = Object.assign({}, DEFAULT_TEMPLATE, data.template || {});
     renderCurrentTab();
     lastRefreshTime = Date.now();
@@ -1471,6 +1528,125 @@ async function deleteSupplier(id, btn){
 }
 
 /* ============================================================
+   KARYAWAN
+   ============================================================ */
+function renderKaryawanTable(){
+  const tableBody = $('karyawan-table-body');
+  if(!tableBody) return;
+  const fc = ($('karyawan-filter-cabang') && $('karyawan-filter-cabang').value) || '';
+  const q = ($('karyawan-search') ? ($('karyawan-search').value || '') : '').toLowerCase();
+  const rows = (DB.karyawan||[]).filter(k => {
+    if(fc && String(k.cabangId) !== String(fc)) return false;
+    if(q && !(String(k.nama||'').toLowerCase().includes(q) || String(k.jabatan||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  tableBody.innerHTML = rows.length ? rows.map(k => `
+    <tr class="hover:bg-slate-800/30 transition">
+      <td class="py-3 px-4 font-semibold text-white">${esc(k.nama)}</td>
+      <td class="py-3 px-4"><span class="px-2 py-0.5 bg-slate-800 rounded-full text-[10px]">${esc(k.jabatan||'-')}</span></td>
+      <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] ${k.cabangId===PUSAT_ID?'bg-amber-500/15 text-amber-400':'bg-slate-800 text-slate-300'}">${esc(cabangName(k.cabangId))}</span></td>
+      <td class="py-3 px-4 text-slate-400">${esc(k.telepon||'-')}</td>
+      <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${k.aktif!==false?'bg-emerald-500/15 text-emerald-400':'bg-slate-700 text-slate-400'}">${k.aktif!==false?'Aktif':'Nonaktif'}</span></td>
+      <td class="py-3 px-4 text-center whitespace-nowrap">
+        <button onclick="openKaryawanModal('${k.id}')" title="Edit" class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition"><i class="fa-solid fa-pen text-[11px]"></i></button>
+        <button onclick="deleteKaryawan('${k.id}', this)" title="Hapus" class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition ml-1"><i class="fa-solid fa-trash text-[11px]"></i></button>
+      </td></tr>`).join('') : `<tr><td colspan="6" class="py-8 text-center text-slate-500 text-xs">Belum ada data karyawan</td></tr>`;
+}
+function renderKaryawanDropdown(){
+  const activeList = (DB.karyawan||[]).filter(k => k.aktif !== false);
+
+  // Datalist untuk pemegang motor
+  const dl = $('karyawan-list');
+  if(dl){
+    dl.innerHTML = activeList.map(k =>
+      `<option value="${esc(k.nama)}">${esc(k.jabatan||'')} — ${esc(cabangName(k.cabangId))}</option>`
+    ).join('');
+  }
+
+  // Select penerima POS
+  const sel = $('pos-penerima');
+  if(sel){
+    const prev = sel.value;
+    const opts = activeList.map(k =>
+      `<option value="${esc(k.nama)}">${esc(k.nama)} — ${esc(k.jabatan||'-')} (${esc(cabangName(k.cabangId))})</option>`
+    ).join('');
+    sel.innerHTML = `<option value="">-- Pilih Penerima --</option>` + opts;
+    if(prev) sel.value = prev;
+  }
+
+  // Select penerima di Edit Transaksi
+  const selEdit = $('et-penerima');
+  if(selEdit){
+    const prev = selEdit.value;
+    const opts = activeList.map(k =>
+      `<option value="${esc(k.nama)}">${esc(k.nama)} — ${esc(k.jabatan||'-')}</option>`
+    ).join('');
+    selEdit.innerHTML = `<option value="">-- Pilih Penerima --</option>` + opts;
+    if(prev) selEdit.value = prev;
+  }
+
+  // Filter cabang di tab karyawan
+  const fc = $('karyawan-filter-cabang');
+  if(fc){
+    const prev = fc.value;
+    const opts = DB.cabang.map(c => `<option value="${esc(c.id)}">${esc(c.nama)}</option>`).join('');
+    fc.innerHTML = `<option value="">Semua Cabang</option><option value="${PUSAT_ID}">${esc((DB.pusat && DB.pusat.nama) || 'Kantor Pusat')}</option>` + opts;
+    if(prev) fc.value = prev;
+  }
+
+  // Select cabang di modal karyawan
+  const kyc = $('ky-cabang');
+  if(kyc){
+    const prev = kyc.value;
+    const opts = DB.cabang.map(c => `<option value="${esc(c.id)}">${esc(c.nama)}</option>`).join('');
+    kyc.innerHTML = `<option value="${PUSAT_ID}">${esc((DB.pusat && DB.pusat.nama) || 'Kantor Pusat')}</option>` + opts;
+    if(prev) kyc.value = prev;
+  }
+}
+function openKaryawanModal(id){
+  renderKaryawanDropdown();
+  if(id){
+    const k = DB.karyawan.find(x => String(x.id) === String(id));
+    if(!k) return;
+    $('karyawan-modal-title').textContent = 'Edit Karyawan';
+    $('ky-id').value = k.id; $('ky-nama').value = k.nama; $('ky-jabatan').value = k.jabatan||'';
+    $('ky-cabang').value = k.cabangId || PUSAT_ID; $('ky-telepon').value = k.telepon||'';
+  } else {
+    $('karyawan-modal-title').textContent = 'Tambah Karyawan';
+    $('ky-id').value=''; $('ky-nama').value=''; $('ky-jabatan').value='';
+    $('ky-cabang').value = PUSAT_ID; $('ky-telepon').value='';
+  }
+  openModal('karyawan-modal');
+}
+async function saveKaryawan(e, btn){
+  e.preventDefault();
+  const data = {
+    id: $('ky-id').value || '', nama: $('ky-nama').value.trim(),
+    jabatan: $('ky-jabatan').value.trim(), cabangId: $('ky-cabang').value,
+    telepon: $('ky-telepon').value.trim(), aktif: true
+  };
+  setLoading(btn, 'Menyimpan...');
+  try {
+    const res = await apiPost('saveKaryawan', data);
+    clearLoading(btn);
+    if(res.error) throw new Error(res.error);
+    closeModal('karyawan-modal'); applyResponse(res); toast('Tersimpan');
+  } catch(err){ clearLoading(btn); toast(err.message,'error'); }
+}
+async function deleteKaryawan(id, btn){
+  const k = (DB.karyawan||[]).find(x => String(x.id) === String(id));
+  if(!k) return;
+  if(!confirm('Hapus karyawan "' + k.nama + '"?')) return;
+  setLoading(btn, '');
+  try {
+    const res = await apiPost('deleteKaryawan', { id });
+    clearLoading(btn);
+    if(res.error) throw new Error(res.error);
+    applyResponse(res); toast('Dihapus');
+  } catch(err){ clearLoading(btn); toast(err.message,'error'); }
+}
+
+/* ============================================================
    TEMPLATE NOTA
    ============================================================ */
 function openTemplateSettings(){
@@ -1575,7 +1751,7 @@ async function savePusat(e, btn){
 /* ============================================================
    NAVIGASI
    ============================================================ */
-const PAGE_TITLES = {'dashboard':['fa-chart-pie','Dashboard'],'sparepart':['fa-box','Master Sparepart'],'transaksi-sparepart':['fa-cart-arrow-down','Transaksi Keluar POS'],'riwayat-transaksi':['fa-receipt','Riwayat Transaksi'],'motor':['fa-motorcycle','Motor Kantor'],'transaksi-motor':['fa-wrench','Transaksi Motor'],'cabang':['fa-code-branch','Data Cabang']};
+const PAGE_TITLES = {'dashboard':['fa-chart-pie','Dashboard'],'sparepart':['fa-box','Master Sparepart'],'transaksi-sparepart':['fa-cart-arrow-down','Transaksi Keluar POS'],'riwayat-transaksi':['fa-receipt','Riwayat Transaksi'],'motor':['fa-motorcycle','Motor Kantor'],'transaksi-motor':['fa-wrench','Transaksi Motor'],'cabang':['fa-code-branch','Data Cabang'],'karyawan':['fa-users','Data Karyawan']};
 
 function switchTab(tab){
   currentTab = tab;
@@ -1893,6 +2069,7 @@ function renderBranchOptions(){
   if(ml){ const p = ml.value;
     ml.innerHTML = DB.motor.filter(m=>m.status!=='Terjual').map(m=>`<option value="${esc(m.id)}">${esc(m.plat)} — ${esc(m.model)}</option>`).join('');
     if(p) ml.value = p; }
+  renderKaryawanDropdown();
 }
 function renderPosCatalog(){
   const q = ($('pos-search').value || '').toLowerCase();
@@ -1958,7 +2135,7 @@ function renderCart(){
   $('pos-total-val').textContent = rp(totalVal);
 }
 
-/* ===== PATCH 1: processPosCheckout — pisahkan API call & print ===== */
+/* ===== processPosCheckout — pisahkan API call & print + kirim penerima ===== */
 async function processPosCheckout(btn){
   if(!cart.length) return toast('Keranjang kosong', 'error');
   const cabangId = $('pos-target-branch').value;
@@ -1966,8 +2143,11 @@ async function processPosCheckout(btn){
 
   const cartSnapshot = cart.slice();
   const notesVal = $('pos-notes').value.trim();
+  const penerimaVal = $('pos-penerima') ? $('pos-penerima').value : '';
   const payload = {
-    cabangId, cabangNama: cabangName(cabangId), catatan: notesVal,
+    cabangId, cabangNama: cabangName(cabangId),
+    penerima: penerimaVal,
+    catatan: notesVal,
     totalItem: cartSnapshot.reduce((a,b)=>a+b.qty,0),
     totalNilai: cartSnapshot.reduce((a,b)=>a+b.qty*b.harga,0),
     items: cartSnapshot.map(c => ({ id:c.id, kode:c.kode, nama:c.nama, harga:c.harga, hargaBeli:c.hargaBeli, kategori:c.kategori, qty:c.qty })),
@@ -2005,11 +2185,10 @@ async function processPosCheckout(btn){
       if (s) s.stok = Math.max(0, Number(s.stok) - Number(it.qty));
     });
     DB.trxKeluar.push(Object.assign({}, receiptData, { _offline:true }));
-    cart = []; $('pos-notes').value = '';
+    cart = []; $('pos-notes').value = ''; if($('pos-penerima')) $('pos-penerima').value = '';
     renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart();
     renderDashboard(); renderBranchOptions();
     toast('Mode offline — transaksi disimpan & akan disinkron otomatis');
-    // Print TERPISAH — kalau error, transaksi tetap aman
     setTimeout(() => {
       try { printReceiptKeluar(receiptData); }
       catch(e){ console.warn('Print offline error:', e); }
@@ -2020,18 +2199,16 @@ async function processPosCheckout(btn){
   // ---- ONLINE SUCCESS ----
   if (res.sparepart) DB.sparepart = res.sparepart;
   if (res.trxKeluar) DB.trxKeluar = res.trxKeluar;
-  cart = []; $('pos-notes').value = '';
+  cart = []; $('pos-notes').value = ''; if($('pos-penerima')) $('pos-penerima').value = '';
   renderSparepartTable(); renderPosCatalog(); renderHistoryTable(); renderCart();
   renderDashboard(); renderBranchOptions();
   lastRefreshTime = Date.now();
   toast('Berhasil');
 
-  // Print TERPISAH
   try {
     if (res.trx) {
       printReceiptKeluar(res.trx);
     } else {
-      // fallback: cetak dari data lokal
       printReceiptKeluar(Object.assign({}, payload, {
         id: 'LOCAL-' + Date.now().toString(36).toUpperCase(),
         tanggal: new Date().toISOString()
@@ -2150,7 +2327,7 @@ function renderHistoryTable(){
     if(!withinRange(t.tanggal, from, to)) return false;
     if(!q) return true;
     const names = (t.items||[]).map(i=>i.nama).join(' ');
-    return String(t.id).toLowerCase().includes(q) || String(t.cabangNama||'').toLowerCase().includes(q) || names.toLowerCase().includes(q);
+    return String(t.id).toLowerCase().includes(q) || String(t.cabangNama||'').toLowerCase().includes(q) || names.toLowerCase().includes(q) || String(t.penerima||'').toLowerCase().includes(q);
   }).slice().reverse();
   $('history-table-body').innerHTML = rows.length ? rows.map(t=>{
     const names = (t.items||[]).map(i=>i.nama).join(', ');
@@ -2187,7 +2364,8 @@ function showDetail(id){
       <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-[10px] text-slate-500">Tanggal</p><p class="font-semibold text-white">${fmtDateTime(t.tanggal)}</p></div>
       <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-[10px] text-slate-500">Cabang</p><p class="font-semibold text-white">${esc(t.cabangNama||cabangName(t.cabangId))}</p></div>
       <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-[10px] text-slate-500">Total Item</p><p class="font-semibold text-white">${t.totalItem} Pcs</p></div>
-      <div class="bg-slate-900/60 rounded-xl p-3 col-span-2"><p class="text-[10px] text-slate-500">Catatan</p><p class="font-semibold text-white">${esc(t.catatan||'-')}</p></div></div>
+      <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-[10px] text-slate-500">Penerima</p><p class="font-semibold text-white">${esc(t.penerima||'-')}</p></div>
+      <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-[10px] text-slate-500">Catatan</p><p class="font-semibold text-white">${esc(t.catatan||'-')}</p></div></div>
     <div class="bg-slate-900/40 rounded-xl border border-darkBorder overflow-hidden">
       <div class="table-wrap"><table class="w-full text-xs text-left text-slate-300">
         <thead class="bg-slate-900/80 text-[10px] uppercase text-slate-400"><tr>
@@ -2214,15 +2392,18 @@ function openEditTrx(id){
   const opts = DB.cabang.map(c => `<option value="${esc(c.id)}">${esc(c.nama)}</option>`).join('');
   $('et-cabang').innerHTML = `<option value="${PUSAT_ID}">${esc((DB.pusat && DB.pusat.nama) || 'Kantor Pusat')}</option>` + opts;
   $('et-cabang').value = t.cabangId || '';
+  renderKaryawanDropdown();
+  if($('et-penerima')) $('et-penerima').value = t.penerima || '';
   $('et-catatan').value = t.catatan || '';
   openModal('edit-trx-modal');
 }
 async function saveEditTrx(e, btn){
   e.preventDefault();
   const id = $('et-id').value, cabangId = $('et-cabang').value;
+  const penerima = $('et-penerima') ? $('et-penerima').value : '';
   setLoading(btn, 'Menyimpan...');
   try {
-    const res = await apiPost('updateKeluar', { id, cabangId, cabangNama: cabangName(cabangId), catatan: $('et-catatan').value.trim() });
+    const res = await apiPost('updateKeluar', { id, cabangId, cabangNama: cabangName(cabangId), penerima, catatan: $('et-catatan').value.trim() });
     clearLoading(btn);
     if(res.error) throw new Error(res.error);
     closeModal('edit-trx-modal'); applyResponse(res); toast('Diupdate');
@@ -2243,10 +2424,10 @@ function exportRekapSparepart(){
   const { from, to } = getFilterRange('history');
   const data = DB.trxKeluar.filter(t => withinRange(t.tanggal, from, to));
   if(!data.length) return toast('Tidak ada data pada rentang ini', 'error');
-  const rows = [['ID','Tanggal','Cabang','Nama Barang','Qty','Harga Beli','Harga Jual','Subtotal Jual','Laba Item','Total Item','Total Nilai','Catatan']];
+  const rows = [['ID','Tanggal','Cabang','Penerima','Nama Barang','Qty','Harga Beli','Harga Jual','Subtotal Jual','Laba Item','Total Item','Total Nilai','Catatan']];
   data.forEach(t => { (t.items||[]).forEach(i => {
     const hb = Number(i.hargaBeli)||0, hj = Number(i.harga)||0, qty = Number(i.qty)||0;
-    rows.push([t.id, fmtDateTime(t.tanggal), t.cabangNama||cabangName(t.cabangId), i.nama, qty, hb, hj, hj*qty, (hj-hb)*qty, t.totalItem, t.totalNilai, t.catatan||'']);
+    rows.push([t.id, fmtDateTime(t.tanggal), t.cabangNama||cabangName(t.cabangId), t.penerima||'', i.nama, qty, hb, hj, hj*qty, (hj-hb)*qty, t.totalItem, t.totalNilai, t.catatan||'']);
   }); });
   downloadCSV(rows, `Rekap_Transaksi_Sparepart_${Date.now()}.csv`);
   toast('Diexport');
@@ -2303,6 +2484,7 @@ function exportMotorKantor(){
   toast('Export berhasil');
 }
 function openMotorModal(id){
+  renderKaryawanDropdown();
   if(id){
     const m = DB.motor.find(x => String(x.id) === String(id));
     if(!m) return;
@@ -2458,7 +2640,7 @@ function renderMotorCart(){
   $('motor-total-val').textContent = rp(motorCart.reduce((a,b)=>a+b.harga,0));
 }
 
-/* ===== PATCH 2: processMotorCheckout — pisahkan API call & print ===== */
+/* ===== processMotorCheckout — pisahkan API call & print ===== */
 async function processMotorCheckout(btn){
   if(!motorCart.length) return toast('Pilih motor dulu', 'error');
   const pembeli = $('motor-buyer').value.trim();
@@ -2531,12 +2713,10 @@ async function processMotorCheckout(btn){
   lastRefreshTime = Date.now();
   toast('Berhasil — ' + count + ' unit tercetak dalam 1 nota');
 
-  // Print TERPISAH
   try {
     if (res.trx) {
       printReceiptMotor(res.trx);
     } else {
-      // fallback: cetak dari data lokal
       const fallbackTrx = cartSnapshot.map((m, idx) => ({
         id: 'LOCAL-' + (idx+1), tanggal: new Date().toISOString(),
         plat: m.plat, model: m.model, tahunMotor: m.tahunMotor,
@@ -2978,7 +3158,6 @@ function padRight(str, len){ str = String(str); return str.length >= len ? str.s
 function twoCol(left, right, width){ left = String(left||''); right = String(right||''); const space = width - right.length; if(left.length >= space) return padRight(left.substring(0, space-1), space-1) + ' ' + right; return padRight(left, space) + right; }
 function center(text, width){ text = String(text||''); if(text.length >= width) return text.substring(0, width); const pad = Math.floor((width - text.length) / 2); return ' '.repeat(pad) + text; }
 
-/* ===== PATCH 3: buildReceiptKeluar — defensive ===== */
 function buildReceiptKeluar(t){
   if (!t || typeof t !== 'object') return '';
   const items = Array.isArray(t.items) ? t.items.filter(Boolean) : [];
@@ -2994,6 +3173,7 @@ function buildReceiptKeluar(t){
   lines.push('No  : ' + (t.id || '-'));
   lines.push('Tgl : ' + fmtDateTime(t.tanggal));
   lines.push('Ke  : ' + (t.cabangNama || cabangName(t.cabangId) || '-'));
+  if (t.penerima) lines.push('Penerima: ' + t.penerima);
   lines.push('Oleh: ' + (t.user || 'Admin'));
   lines.push(L);
   items.forEach(i => {
@@ -3017,7 +3197,6 @@ function buildReceiptKeluar(t){
   return lines.join('\n');
 }
 
-/* ===== PATCH 4: buildReceiptMotor — defensive (FIX UTAMA) ===== */
 function buildReceiptMotor(data){
   if (!data) return '';
   const rawArr = Array.isArray(data) ? data : [data];
@@ -3073,7 +3252,6 @@ function buildReceiptMotor(data){
 
 function receiptToHtml(text){ return '<div class="rp-line">' + esc(text).replace(/\n/g,'<br>').replace(/ /g,'&nbsp;') + '</div>'; }
 
-/* ===== PATCH 5: printReceiptKeluar & byId — defensive ===== */
 function printReceiptKeluar(t){
   try {
     const text = buildReceiptKeluar(t);
@@ -3090,7 +3268,6 @@ function printReceiptKeluarById(id){
   printReceiptKeluar(t);
 }
 
-/* ===== PATCH 6: printReceiptMotor & byId — defensive ===== */
 function printReceiptMotor(data){
   try {
     const text = buildReceiptMotor(data);
@@ -3107,7 +3284,6 @@ function printReceiptMotorById(id){
   printReceiptMotor(t);
 }
 
-/* ===== PATCH 7: printThermal — defensive ===== */
 function printThermal(text, type){
   try {
     if (!text) { toast('Tidak ada teks untuk dicetak', 'error'); return; }
