@@ -1198,6 +1198,8 @@ let paperSize = localStorage.getItem('paperSize') || '58';
 /* ============ PAGINATION STATE ============ */
 const PAGE_SIZE = 10;
 let pgState = { motor: 1, sparepart: 1, karyawan: 1, history: 1, motorTrx: 1, motorLog: 1 };
+/* Flag agar setPage tidak di-reset oleh resetPage di dalam render */
+let _skipPageReset = {};
 
 const DEFAULT_TEMPLATE = {
   store: 'AJ INVENTORY HUB', address: 'Kantor Pusat Utama',
@@ -1287,7 +1289,11 @@ function getCharsPerLine(){ return paperSize === '80' ? 48 : 32; }
 /* ============================================================
    PAGINATION HELPERS
    ============================================================ */
-function resetPage(key){ pgState[key] = 1; }
+function resetPage(key){
+  /* Skip reset jika dipicu dari setPage */
+  if(_skipPageReset[key]){ _skipPageReset[key] = false; return; }
+  pgState[key] = 1;
+}
 function paginate(arr, key){
   const total = arr.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -1299,6 +1305,9 @@ function paginate(arr, key){
 }
 function setPage(key, p){
   if(p < 1) return;
+  const el = $(key + '-pager');
+  /* Set flag supaya resetPage di render tidak mereset */
+  _skipPageReset[key] = true;
   pgState[key] = p;
   if(key === 'motor') renderMotorTable();
   else if(key === 'sparepart') renderSparepartTable();
@@ -1306,6 +1315,9 @@ function setPage(key, p){
   else if(key === 'history') renderHistoryTable();
   else if(key === 'motorTrx') renderMotorTrxTable();
   else if(key === 'motorLog') renderMotorLogTable();
+  /* Flag bisa nyangkut jika tidak ada resetPage di render,
+     jadi aman untuk di-clear setelah render */
+  _skipPageReset[key] = false;
 }
 function renderPager(containerId, key, totalItems){
   const el = $(containerId);
@@ -2591,7 +2603,7 @@ function exportRekapSparepart(){
     rows.push([t.id, fmtDateTime(t.tanggal), t.cabangNama||cabangName(t.cabangId), t.penerima||'', i.nama, qty, hb, hj, hj*qty, (hj-hb)*qty, t.totalItem, t.totalNilai, t.catatan||'']);
   }); });
   downloadCSV(rows, `Rekap_Transaksi_Sparepart_${Date.now()}.csv`);
-  toast('Diexport');
+  toast('Diexport ' + data.length + ' transaksi');
 }
 
 /* ============================================================
@@ -2646,7 +2658,7 @@ function exportMotorKantor(){
     ]);
   });
   downloadCSV(rows, `Data_Motor_Kantor_${Date.now()}.csv`);
-  toast('Export berhasil');
+  toast('Export berhasil (' + DB.motor.length + ' motor)');
 }
 function openMotorModal(id){
   renderKaryawanDropdown();
@@ -3003,7 +3015,7 @@ function exportRekapMotorTrx(){
   const rows = [['ID','Tanggal','Plat','Model','Tahun','No Mesin','No Rangka','Atas Nama','Pembeli','Metode','Harga','Catatan']];
   data.forEach(t => rows.push([t.id, fmtDateTime(t.tanggal), t.plat, t.model, t.tahunMotor||'', t.noMesin||'', t.noRangka||'', t.atasNama||'', t.pembeli||'', t.metode||'', t.hargaJual, t.catatan||'']));
   downloadCSV(rows, `Rekap_Transaksi_Motor_${Date.now()}.csv`);
-  toast('Diexport');
+  toast('Diexport ' + data.length + ' transaksi');
 }
 
 /* ============================================================
@@ -3119,7 +3131,7 @@ function exportRekapLog(){
   const rows = [['ID','Tanggal','Plat','Jenis','Keterangan','Biaya','Status','Konfirmasi At','Konfirmasi By']];
   DB.motorLog.forEach(l => rows.push([l.id, fmtDateTime(l.tanggal), l.plat, l.jenis, l.keterangan||'', l.status==='Selesai' ? l.biaya : 0, l.status||'Proses', l.konfirmasiAt?fmtDateTime(l.konfirmasiAt):'', l.konfirmasiBy||'']));
   downloadCSV(rows, `Rekap_Servis_${Date.now()}.csv`);
-  toast('Diexport');
+  toast('Diexport ' + DB.motorLog.length + ' data');
 }
 
 /* ============================================================
