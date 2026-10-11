@@ -284,6 +284,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
             <th class="py-3 px-4 text-center">Margin</th><th class="py-3 px-4 text-center">Stok</th>
             <th class="py-3 px-4">Supplier</th><th class="py-3 px-4 text-center">Aksi</th></tr></thead>
           <tbody id="sparepart-table-body" class="divide-y divide-darkBorder/50"></tbody></table></div>
+        <div id="sparepart-pager"></div>
       </div>
     </section>
 
@@ -378,6 +379,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
             <th class="py-3 px-4">Barang</th><th class="py-3 px-4 text-center">Item</th>
             <th class="py-3 px-4 text-right">Nilai</th><th class="py-3 px-4 text-center">Aksi</th></tr></thead>
           <tbody id="history-table-body" class="divide-y divide-darkBorder/50"></tbody></table></div>
+        <div id="history-pager"></div>
       </div>
     </section>
 
@@ -411,10 +413,11 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
           <thead class="text-[11px] text-slate-400 uppercase bg-slate-900/80 border-b border-darkBorder"><tr>
             <th class="py-3 px-4">Plat</th><th class="py-3 px-4">Model</th><th class="py-3 px-4">Tahun</th>
             <th class="py-3 px-4">No. Mesin</th><th class="py-3 px-4">No. Rangka</th><th class="py-3 px-4">Atas Nama</th>
-            <th class="py-3 px-4">Pemegang</th>  
+            <th class="py-3 px-4">Pemegang</th><th class="py-3 px-4">Jabatan</th>
             <th class="py-3 px-4">Cabang</th><th class="py-3 px-4">Pajak</th>
             <th class="py-3 px-4 text-center">Status</th><th class="py-3 px-4 text-center">Aksi</th></tr></thead>
           <tbody id="motor-table-body" class="divide-y divide-darkBorder/50"></tbody></table></div>
+        <div id="motor-pager"></div>
       </div>
     </section>
 
@@ -507,6 +510,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
               <th class="py-3 px-4">Metode</th><th class="py-3 px-4 text-right">Harga</th>
               <th class="py-3 px-4 text-center">Aksi</th></tr></thead>
             <tbody id="motor-trx-table-body" class="divide-y divide-darkBorder/50"></tbody></table></div>
+          <div id="motorTrx-pager"></div>
         </div>
       </div>
 
@@ -536,6 +540,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
               <th class="py-3 px-4">Keterangan</th><th class="py-3 px-4 text-right">Biaya</th>
               <th class="py-3 px-4 text-center">Status</th><th class="py-3 px-4 text-center">Aksi</th></tr></thead>
             <tbody id="motor-log-table-body" class="divide-y divide-darkBorder/50"></tbody></table></div>
+          <div id="motorLog-pager"></div>
         </div>
       </div>
     </section>
@@ -580,6 +585,7 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
             <th class="py-3 px-4 text-center">Tgl Masuk</th><th class="py-3 px-4 text-center">Tgl Keluar</th>
             <th class="py-3 px-4 text-center">Status</th><th class="py-3 px-4 text-center">Aksi</th></tr></thead>
           <tbody id="karyawan-table-body" class="divide-y divide-darkBorder/50"></tbody></table></div>
+        <div id="karyawan-pager"></div>
       </div>
     </section>
 
@@ -794,6 +800,8 @@ body{font-family:'Inter',sans-serif;background-color:#0b0f19;color:#f3f4f6;paddi
         <div><label class="block text-[11px] text-slate-400 mb-1">Pemegang</label>
           <input type="text" id="mt-pemegang" list="karyawan-list" placeholder="Ketik / pilih nama karyawan" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange">
           <datalist id="karyawan-list"></datalist></div>
+        <div><label class="block text-[11px] text-slate-400 mb-1">Jabatan</label>
+          <input type="text" id="mt-jabatan" placeholder="PIMPINAN / PDL / WAKIL" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brandOrange"></div>
         <div><label class="block text-[11px] text-slate-400 mb-1">Pajak S/D</label>
           <input type="date" id="mt-pajak" class="w-full bg-slate-900 border border-darkBorder rounded-xl px-3 py-2 text-xs text-white"></div>
         <div><label class="block text-[11px] text-slate-400 mb-1">Cabang <span class="text-rose-500">*</span></label>
@@ -1187,6 +1195,10 @@ let currentTab = 'dashboard';
 let lastTab = '';
 let paperSize = localStorage.getItem('paperSize') || '58';
 
+/* ============ PAGINATION STATE ============ */
+const PAGE_SIZE = 10;
+let pgState = { motor: 1, sparepart: 1, karyawan: 1, history: 1, motorTrx: 1, motorLog: 1 };
+
 const DEFAULT_TEMPLATE = {
   store: 'AJ INVENTORY HUB', address: 'Kantor Pusat Utama',
   address2: 'Jl. Raya Industri No. 1', phone: 'Telp: 021-1234567',
@@ -1271,6 +1283,50 @@ function updatePaperUI(){
   });
 }
 function getCharsPerLine(){ return paperSize === '80' ? 48 : 32; }
+
+/* ============================================================
+   PAGINATION HELPERS
+   ============================================================ */
+function resetPage(key){ pgState[key] = 1; }
+function paginate(arr, key){
+  const total = arr.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if(pgState[key] > totalPages) pgState[key] = totalPages;
+  if(pgState[key] < 1) pgState[key] = 1;
+  const cur = pgState[key];
+  const start = (cur-1) * PAGE_SIZE;
+  return arr.slice(start, start + PAGE_SIZE);
+}
+function setPage(key, p){
+  if(p < 1) return;
+  pgState[key] = p;
+  if(key === 'motor') renderMotorTable();
+  else if(key === 'sparepart') renderSparepartTable();
+  else if(key === 'karyawan') renderKaryawanTable();
+  else if(key === 'history') renderHistoryTable();
+  else if(key === 'motorTrx') renderMotorTrxTable();
+  else if(key === 'motorLog') renderMotorLogTable();
+}
+function renderPager(containerId, key, totalItems){
+  const el = $(containerId);
+  if(!el) return;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const cur = Math.min(pgState[key] || 1, totalPages);
+  pgState[key] = cur;
+  if(totalItems === 0){ el.innerHTML = ''; return; }
+  const start = (cur-1) * PAGE_SIZE + 1;
+  const end = Math.min(cur * PAGE_SIZE, totalItems);
+  const btnPrev = `<button onclick="setPage('${key}', ${cur-1})" ${cur<=1?'disabled':''} class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 transition"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>`;
+  const btnNext = `<button onclick="setPage('${key}', ${cur+1})" ${cur>=totalPages?'disabled':''} class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 transition"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>`;
+  el.innerHTML = `<div class="flex items-center justify-between px-4 py-3 border-t border-darkBorder/50 text-xs">
+    <span class="text-slate-400">Menampilkan <b class="text-white">${start}-${end}</b> dari <b class="text-white">${totalItems}</b></span>
+    <div class="flex items-center gap-2">
+      ${btnPrev}
+      <span class="text-slate-400 text-[11px] px-2">Hal ${cur} / ${totalPages}</span>
+      ${btnNext}
+    </div>
+  </div>`;
+}
 
 function applyResponse(res){
   if(!res) return;
@@ -1570,7 +1626,9 @@ function renderKaryawanTable(){
     if(q && !(String(k.nama||'').toLowerCase().includes(q) || String(k.jabatan||'').toLowerCase().includes(q))) return false;
     return true;
   });
-  tableBody.innerHTML = rows.length ? rows.map(k => {
+  resetPage('karyawan');
+  const pageRows = paginate(rows, 'karyawan');
+  tableBody.innerHTML = pageRows.length ? pageRows.map(k => {
     const isResign = k.aktif === false || !!k.tanggalKeluar;
     return `<tr class="hover:bg-slate-800/30 transition ${isResign?'opacity-60':''}">
       <td class="py-3 px-4 font-semibold text-white">${esc(k.nama)}</td>
@@ -1587,11 +1645,11 @@ function renderKaryawanTable(){
         <button onclick="deleteKaryawan('${k.id}', this)" title="Hapus" class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition ml-1"><i class="fa-solid fa-trash text-[11px]"></i></button>
       </td></tr>`;
   }).join('') : `<tr><td colspan="9" class="py-8 text-center text-slate-500 text-xs">Belum ada data karyawan</td></tr>`;
+  renderPager('karyawan-pager', 'karyawan', rows.length);
 }
 function renderKaryawanDropdown(){
   const activeList = (DB.karyawan||[]).filter(k => k.aktif !== false && !k.tanggalKeluar);
 
-  // Datalist untuk pemegang motor
   const dl = $('karyawan-list');
   if(dl){
     dl.innerHTML = activeList.map(k =>
@@ -1599,7 +1657,6 @@ function renderKaryawanDropdown(){
     ).join('');
   }
 
-  // Filter cabang di tab karyawan
   const fc = $('karyawan-filter-cabang');
   if(fc){
     const prev = fc.value;
@@ -1608,7 +1665,6 @@ function renderKaryawanDropdown(){
     if(prev) fc.value = prev;
   }
 
-  // Select cabang di modal karyawan
   const kyc = $('ky-cabang');
   if(kyc){
     const prev = kyc.value;
@@ -1617,13 +1673,9 @@ function renderKaryawanDropdown(){
     if(prev) kyc.value = prev;
   }
 
-  // Penerima POS — filter by selected cabang
   renderPenerimaDropdown();
-  // Penerima di Edit Transaksi — filter by selected cabang
   renderPenerimaEditDropdown();
 }
-
-/* Auto-filter penerima POS by cabang tujuan */
 function renderPenerimaDropdown(){
   const sel = $('pos-penerima');
   if(!sel) return;
@@ -1647,8 +1699,6 @@ function renderPenerimaDropdown(){
     filtered.map(k => `<option value="${esc(k.nama)}">${esc(k.nama)} — ${esc(k.jabatan||'-')}</option>`).join('');
   if(prev && filtered.some(k => k.nama === prev)) sel.value = prev;
 }
-
-/* Auto-filter penerima di Edit Transaksi by cabang */
 function renderPenerimaEditDropdown(){
   const sel = $('et-penerima');
   if(!sel) return;
@@ -1660,7 +1710,6 @@ function renderPenerimaEditDropdown(){
     filtered.map(k => `<option value="${esc(k.nama)}">${esc(k.nama)} — ${esc(k.jabatan||'-')}</option>`).join('');
   if(prev) sel.value = prev;
 }
-
 function openKaryawanModal(id){
   renderKaryawanDropdown();
   if(id){
@@ -2056,7 +2105,9 @@ function renderCharts(){
 function renderSparepartTable(){
   const q = ($('sparepart-search').value || '').toLowerCase();
   const rows = DB.sparepart.filter(s => !q || String(s.nama).toLowerCase().includes(q) || String(s.kode).toLowerCase().includes(q));
-  $('sparepart-table-body').innerHTML = rows.length ? rows.map(s => {
+  resetPage('sparepart');
+  const pageRows = paginate(rows, 'sparepart');
+  $('sparepart-table-body').innerHTML = pageRows.length ? pageRows.map(s => {
     const low = Number(s.stok) <= Number(s.minStok);
     const hb = Number(s.hargaBeli)||0, hj = Number(s.hargaJual)||Number(s.harga)||0;
     const margin = hb > 0 ? ((hj - hb) / hb * 100) : 0;
@@ -2075,6 +2126,7 @@ function renderSparepartTable(){
         <button onclick="deleteSparepart('${s.id}', this)" title="Hapus" class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition ml-1"><i class="fa-solid fa-trash text-[11px]"></i></button>
       </td></tr>`;
   }).join('') : `<tr><td colspan="9" class="py-8 text-center text-slate-500 text-xs">Belum ada data</td></tr>`;
+  renderPager('sparepart-pager', 'sparepart', rows.length);
 }
 function openSparepartModal(id){
   renderKategoriDropdown();
@@ -2242,7 +2294,6 @@ function renderCart(){
   $('pos-total-val').textContent = rp(totalVal);
 }
 
-/* processPosCheckout — kirim penerima & reset dropdown */
 async function processPosCheckout(btn){
   if(!cart.length) return toast('Keranjang kosong', 'error');
   const cabangId = $('pos-target-branch').value;
@@ -2274,7 +2325,6 @@ async function processPosCheckout(btn){
   }
   clearLoading(btn);
 
-  // ---- OFFLINE PATH ----
   if (apiError) {
     const isOffline = apiError.message === 'OFFLINE' || !navigator.onLine ||
                       /failed to fetch|network|load failed/i.test(apiError.message);
@@ -2304,7 +2354,6 @@ async function processPosCheckout(btn){
     return;
   }
 
-  // ---- ONLINE SUCCESS ----
   if (res.sparepart) DB.sparepart = res.sparepart;
   if (res.trxKeluar) DB.trxKeluar = res.trxKeluar;
   cart = []; $('pos-notes').value = ''; if($('pos-penerima')) $('pos-penerima').value = '';
@@ -2438,7 +2487,9 @@ function renderHistoryTable(){
     const names = (t.items||[]).map(i=>i.nama).join(' ');
     return String(t.id).toLowerCase().includes(q) || String(t.cabangNama||'').toLowerCase().includes(q) || names.toLowerCase().includes(q) || String(t.penerima||'').toLowerCase().includes(q);
   }).slice().reverse();
-  $('history-table-body').innerHTML = rows.length ? rows.map(t=>{
+  resetPage('history');
+  const pageRows = paginate(rows, 'history');
+  $('history-table-body').innerHTML = pageRows.length ? pageRows.map(t=>{
     const names = (t.items||[]).map(i=>i.nama).join(', ');
     return `<tr class="hover:bg-slate-800/30 transition">
       <td class="py-3 px-4 font-mono text-[11px] text-brandOrange">${esc(t.id)}</td>
@@ -2454,6 +2505,7 @@ function renderHistoryTable(){
         <button onclick="deleteTrxKeluar('${t.id}', this)" title="Hapus" class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition ml-1"><i class="fa-solid fa-trash text-[11px]"></i></button>
       </td></tr>`;
   }).join('') : `<tr><td colspan="7" class="py-8 text-center text-slate-500 text-xs">Belum ada transaksi${(from||to)?' pada rentang tanggal ini':''}</td></tr>`;
+  renderPager('history-pager', 'history', rows.length);
   const total = rows.length;
   const item  = rows.reduce((a,b)=>a + Number(b.totalItem||0), 0);
   const nilai = rows.reduce((a,b)=>a + Number(b.totalNilai||0), 0);
@@ -2564,7 +2616,9 @@ function renderMotorTable(){
     if(q && !(String(m.plat).toLowerCase().includes(q) || String(m.model).toLowerCase().includes(q))) return false;
     return true;
   });
-  $('motor-table-body').innerHTML = rows.length ? rows.map(m=>`
+  resetPage('motor');
+  const pageRows = paginate(rows, 'motor');
+  $('motor-table-body').innerHTML = pageRows.length ? pageRows.map(m=>`
     <tr class="hover:bg-slate-800/30 transition">
       <td class="py-3 px-4 font-mono font-bold text-white">${esc(m.plat)}</td>
       <td class="py-3 px-4">${esc(m.model)}</td>
@@ -2573,19 +2627,21 @@ function renderMotorTable(){
       <td class="py-3 px-4 text-[10px] text-slate-400 font-mono">${esc(m.noRangka||'-')}</td>
       <td class="py-3 px-4">${esc(m.atasNama||'-')}</td>
       <td class="py-3 px-4"><span class="text-[11px] ${m.pemegang ? 'text-emerald-300' : 'text-slate-500 italic'}">${esc(m.pemegang||'-')}</span></td>
+      <td class="py-3 px-4"><span class="text-[11px] ${m.jabatan ? 'text-sky-300' : 'text-slate-500 italic'}">${esc(m.jabatan||'-')}</span></td>
       <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] ${m.cabangId===PUSAT_ID?'bg-amber-500/15 text-amber-400':'bg-slate-800 text-slate-300'}">${esc(cabangName(m.cabangId))}</span></td>
       <td class="py-3 px-4 text-[11px]">${fmtDateOnly(m.pajakBerlaku)}</td>
       <td class="py-3 px-4 text-center">${statusBadge(m.status)}</td>
       <td class="py-3 px-4 text-center whitespace-nowrap">${motorActions(m)}</td>
-    </tr>`).join('') : `<tr><td colspan="11" class="py-8 text-center text-slate-500 text-xs">Tidak ada data</td></tr>`;
+    </tr>`).join('') : `<tr><td colspan="12" class="py-8 text-center text-slate-500 text-xs">Tidak ada data</td></tr>`;
+  renderPager('motor-pager', 'motor', rows.length);
 }
 function exportMotorKantor(){
   if(!DB.motor.length) return toast('Tidak ada data motor', 'error');
-  const rows = [['ID','Plat','Model','Tahun','No Mesin','No Rangka','Atas Nama','Pemegang','Pajak S/D','Cabang','Harga Jual','Status','Keterangan']];
+  const rows = [['ID','Plat','Model','Tahun','No Mesin','No Rangka','Atas Nama','Pemegang','Jabatan','Pajak S/D','Cabang','Harga Jual','Status','Keterangan']];
   DB.motor.forEach(m => {
     rows.push([
       m.id, m.plat, m.model, m.tahunMotor||'', m.noMesin||'', m.noRangka||'', m.atasNama||'',
-      m.pemegang||'', m.pajakBerlaku||'', cabangName(m.cabangId), m.hargaJual||0,
+      m.pemegang||'', m.jabatan||'', m.pajakBerlaku||'', cabangName(m.cabangId), m.hargaJual||0,
       m.status||'', m.keterangan||''
     ]);
   });
@@ -2603,12 +2659,14 @@ function openMotorModal(id){
     $('mt-tahun').value = m.tahunMotor||''; $('mt-mesin').value = m.noMesin||'';
     $('mt-rangka').value = m.noRangka||''; $('mt-stnk').value = m.atasNama||'';
     $('mt-pemegang').value = m.pemegang||'';
+    $('mt-jabatan').value = m.jabatan||'';
     $('mt-pajak').value = String(m.pajakBerlaku||'').substring(0,10);
     $('mt-cabang').value = m.cabangId; $('mt-harga').value = m.hargaJual||''; $('mt-ket').value = m.keterangan||'';
   } else {
     $('motor-modal-title').textContent = 'Tambah Motor';
     $('mt-id').value=''; $('mt-plat').value=''; $('mt-model').value=''; $('mt-tahun').value='';
     $('mt-mesin').value=''; $('mt-rangka').value=''; $('mt-stnk').value=''; $('mt-pemegang').value='';
+    $('mt-jabatan').value='';
     $('mt-pajak').value=''; $('mt-cabang').value=PUSAT_ID; $('mt-harga').value=''; $('mt-ket').value='';
   }
   openModal('motor-modal');
@@ -2620,6 +2678,7 @@ async function saveMotor(e, btn){
     model: $('mt-model').value.trim(), tahunMotor: $('mt-tahun').value.trim(),
     noMesin: $('mt-mesin').value.trim(), noRangka: $('mt-rangka').value.trim(),
     atasNama: $('mt-stnk').value.trim(), pemegang: $('mt-pemegang').value.trim(),
+    jabatan: $('mt-jabatan').value.trim(),
     pajakBerlaku: $('mt-pajak').value, cabangId: $('mt-cabang').value,
     hargaJual: Number($('mt-harga').value)||0, keterangan: $('mt-ket').value.trim()
   };
@@ -2775,7 +2834,6 @@ async function processMotorCheckout(btn){
   }
   clearLoading(btn);
 
-  // ---- OFFLINE PATH ----
   if (apiError) {
     const isOffline = apiError.message === 'OFFLINE' || !navigator.onLine ||
                       /failed to fetch|network|load failed/i.test(apiError.message);
@@ -2810,7 +2868,6 @@ async function processMotorCheckout(btn){
     return;
   }
 
-  // ---- ONLINE SUCCESS ----
   if (res.motor) DB.motor = res.motor;
   if (res.trxMotor) DB.trxMotor = res.trxMotor;
   const count = Array.isArray(res.trx) ? res.trx.length : 1;
@@ -2841,7 +2898,9 @@ async function processMotorCheckout(btn){
 function renderMotorTrxTable(){
   const { from, to } = getFilterRange('motortrx');
   const rows = (DB.trxMotor||[]).filter(t => withinRange(t.tanggal, from, to)).slice().reverse();
-  $('motor-trx-table-body').innerHTML = rows.length ? rows.map(t=>`
+  resetPage('motorTrx');
+  const pageRows = paginate(rows, 'motorTrx');
+  $('motor-trx-table-body').innerHTML = pageRows.length ? pageRows.map(t=>`
     <tr class="hover:bg-slate-800/30 transition">
       <td class="py-3 px-4 font-mono text-[11px] text-brandOrange">${esc(t.id)}</td>
       <td class="py-3 px-4">${fmtDateTime(t.tanggal)}</td>
@@ -2857,6 +2916,7 @@ function renderMotorTrxTable(){
         <button onclick="kembalikanKeKeranjang('${t.id}', this)" class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition ml-1" title="Kembalikan ke Keranjang"><i class="fa-solid fa-rotate-left text-[11px]"></i></button>
         <button onclick="deleteMotorTrx('${t.id}', this)" class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition ml-1" title="Hapus"><i class="fa-solid fa-trash text-[11px]"></i></button>
       </td></tr>`).join('') : `<tr><td colspan="9" class="py-8 text-center text-slate-500 text-xs">Belum ada transaksi motor${(from||to)?' pada rentang tanggal ini':''}</td></tr>`;
+  renderPager('motorTrx-pager', 'motorTrx', rows.length);
   const total = rows.length;
   const cash  = rows.filter(t=>t.metode==='Cash').length;
   const tf    = rows.filter(t=>t.metode==='Transfer').length;
@@ -2951,7 +3011,9 @@ function exportRekapMotorTrx(){
    ============================================================ */
 function renderMotorLogTable(){
   const rows = (DB.motorLog||[]).slice().reverse();
-  $('motor-log-table-body').innerHTML = rows.length ? rows.map(l=>{
+  resetPage('motorLog');
+  const pageRows = paginate(rows, 'motorLog');
+  $('motor-log-table-body').innerHTML = pageRows.length ? pageRows.map(l=>{
     const isSelesai = l.status === 'Selesai';
     return `<tr class="hover:bg-slate-800/30 transition">
       <td class="py-3 px-4">${fmtDateTime(l.tanggal)}</td>
@@ -2971,6 +3033,7 @@ function renderMotorLogTable(){
         `}
       </td></tr>`;
   }).join('') : `<tr><td colspan="7" class="py-8 text-center text-slate-500 text-xs">Belum ada data servis</td></tr>`;
+  renderPager('motorLog-pager', 'motorLog', rows.length);
   const total = DB.motorLog.length;
   const proses = DB.motorLog.filter(l=>l.status==='Proses').length;
   const selesai = DB.motorLog.filter(l=>l.status==='Selesai').length;
